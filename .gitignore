@@ -1,0 +1,101 @@
+# Compiled files
+build/
+
+# Qt generated files
+*.moc
+*.qmlc
+*.jsc
+qrc_*.cpp
+moc_*.cpp
+ui_*.h
+qrc_*.h
+*.qrc.depends
+*.qrc.cache
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.cmake
+build.ninja
+.ninja_log
+compile_commands.json
+Testing/
+DartConfiguration.tcl
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.qmlproject.user
+*.qmlproject.user.*
+*.qtds
+*.qtcreator.user
+
+# Build artifacts
+bin/
+lib/
+*.pdb
+*.ilk
+*.exp
+
+# Debug symbols
+*.debug
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+
+# Sensitive configuration files (API keys, secrets)
+config/config.json
+config/user_config.json
+config/local_config.json
+*.env
+.env.*
+
+# Memory files (contains session data)
+memory/HISTORY.md
+memory/MEMORY.md
+
+# Database
+*.sqlite
+*.sqlite3
+
+# Test and debug data
+*.txt
+react.txt
+scroll_dump.txt
+tokens.txt
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+.settings/
+.project
+.cproject
+.pydevproject
+
+# Agent configurations
+agents/
+
+# Learning materials
+learn/
+
+# Workspace (development tools working directory)
+workspace/
+
+# Node.js dependencies (if any)
+node_modules/

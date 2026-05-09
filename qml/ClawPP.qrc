@@ -1,0 +1,17 @@
+<RCC>
+    <qresource>
+        <file>ClawPP.qmlproject</file>
+        <file>components/AppShell.qml</file>
+        <file>components/ChatBubble.qml</file>
+        <file>components/ChatComposer.qml</file>
+        <file>components/GlassCard.qml</file>
+        <file>components/SessionActionsBar.qml</file>
+        <file>components/SessionRow.qml</file>
+        <file>components/SidebarItem.qml</file>
+        <file>components/SidebarPanel.qml</file>
+        <file>components/WorkspaceHeader.qml</file>
+        <file>components/WorkspacePanel.qml</file>
+        <file>Main.qml</file>
+        <file>Main.ui.qml</file>
+    </qresource>
+</RCC>

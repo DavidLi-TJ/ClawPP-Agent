@@ -1,0 +1,25 @@
+{
+    "provider": {
+        "type": "openai",
+        "api_key": "",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": 2048
+    },
+    "network": {
+        "timeout_ms": 60000
+    },
+    "ui": {
+        "theme": "default"
+    },
+    "memory": {
+        "token_threshold": 4000,
+        "keep_first": 3,
+        "keep_last": 5,
+        "summary_ratio": 0.3,
+        "retrieval_top_k": 6,
+        "embedding_dimension": 64,
+        "optimization_threshold": 0.92
+    }
+}
