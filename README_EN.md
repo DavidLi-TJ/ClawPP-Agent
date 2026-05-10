@@ -42,7 +42,7 @@
 <details>
 <summary>UI Preview</summary>
 
-![Claw++ Main UI](pic2.png)
+![Claw++ Main UI](images/pic2.png)
 
 </details>
 

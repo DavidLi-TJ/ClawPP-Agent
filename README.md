@@ -202,11 +202,11 @@
 ## 📸 项目截图
 
 
-![主界面](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/pic.png)
+![主界面](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic.png)
 
 <p align="center"><i>Claw++ 主界面</i></p>
 
-![Token 配置](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/pic2.png)
+![Token 配置](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic2.png)
 
 <p align="center"><i>Token 配置界面</i></p>
 
