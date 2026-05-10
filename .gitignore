@@ -77,6 +77,7 @@ CLAUDE.md
 
 # Installer artifacts
 installer/
+*.exe
 
 # Screenshots
 001.png

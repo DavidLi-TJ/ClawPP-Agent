@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>Claw++</Name>
+    <Version>1.0.0</Version>
+    <Title>Claw++ Installer</Title>
+    <Publisher>DavidLi-TJ</Publisher>
+    <StartMenuDir>Claw++</StartMenuDir>
+    <TargetDir>@ApplicationsDirX64@/Claw++</TargetDir>
+</Installer>

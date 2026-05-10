@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>Claw++</Name>
+    <Version>1.0.0</Version>
+    <Title>Claw++ — AI Agent Desktop Application</Title>
+    <Publisher>DavidLi-TJ</Publisher>
+    <ProductUrl>https://github.com/DavidLi-TJ/ClawPP-Agent</ProductUrl>
+    <InstallerWindowIcon>../../icon.ico</InstallerWindowIcon>
+    <StartMenuDir>Claw++</StartMenuDir>
+    <TargetDir>@ApplicationsDirX64@/Claw++</TargetDir>
+    <AdminTargetDir>@ApplicationsDirX64@/Claw++</AdminTargetDir>
+    <RemoveTargetDirOnUninstallation>true</RemoveTargetDirOnUninstallation>
+    <ControlScript>controlscript.js</ControlScript>
+    <WizardDefaultPixmap>../../icon.png</WizardDefaultPixmap>
+    <WizardShowPageList>false</WizardShowPageList>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <SaveDefaultRepositories>false</SaveDefaultRepositories>
+    <MaintenanceToolName>Uninstall</MaintenanceToolName>
+</Installer>

@@ -104,9 +104,17 @@
 
 ---
 
-## Quick Start
+## 📦 Installation
 
-### Requirements
+### 📥 Download Installer (Recommended)
+
+Get the latest Windows installer (.exe) from [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases). Double-click to install — zero config needed.
+
+> 💡 Installer under 100MB, one-click install, ready to use out of the box
+
+### 🔨 Build from Source
+
+#### Requirements
 
 | Dependency | Version |
 |------------|---------|
@@ -114,7 +122,7 @@
 | CMake | 3.20+ |
 | C++ Compiler | MSVC 2019+ / GCC 8+ / Clang 9+ |
 
-### Build
+#### Build Steps
 
 ```bash
 git clone https://github.com/DavidLi-TJ/ClawPP-Agent.git
@@ -123,6 +131,17 @@ mkdir build && cd build
 cmake ..
 cmake --build . --config Release
 ```
+
+#### Build Installer
+
+> Requires [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/) to be installed first
+
+```bash
+# Run from project root
+build_installer.bat
+```
+
+The script handles everything: Release build → gather files → IFW packaging → generates `ClawPP-Installer-v1.0.0.exe`.
 
 ### Run
 

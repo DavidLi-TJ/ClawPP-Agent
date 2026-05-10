@@ -212,9 +212,17 @@
 
 ***
 
-## 📦 快速开始
+## 📦 安装
 
-### 📋 环境要求
+### 📥 下载安装包（推荐）
+
+前往 [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases) 下载最新版本的 Windows 安装包（.exe），双击即可安装，无需任何配置。
+
+> 💡 安装包体积 < 100MB，一键安装，开箱即用
+
+### 🔨 从源码构建
+
+#### 📋 环境要求
 
 | 依赖      | 版本要求                           |
 | ------- | ------------------------------ |
@@ -222,7 +230,7 @@
 | CMake   | 3.20+                          |
 | C++ 编译器 | MSVC 2019+ / GCC 8+ / Clang 9+ |
 
-### 🔨 构建步骤
+#### 构建步骤
 
 ```bash
 # 克隆仓库
@@ -238,6 +246,17 @@ cmake ..
 # 构建项目
 cmake --build . --config Release
 ```
+
+#### 🏗️ 构建安装包
+
+> 需要预先安装 [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/)
+
+```bash
+# 在项目根目录运行
+build_installer.bat
+```
+
+脚本会自动完成：Release 构建 → 文件收集 → IFW 打包，最终生成 `ClawPP-Installer-v1.0.0.exe`。
 
 ### ▶️ 运行
 
