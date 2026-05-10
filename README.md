@@ -219,6 +219,19 @@
 前往 [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases) 下载最新版本的 Windows 安装包（.exe），双击即可安装，无需任何配置。
 
 > 💡 安装包体积 < 100MB，一键安装，开箱即用
+>
+> 📦 安装包文件：`ClawPP-Installer-v1.0.0.exe`（57.7 MB）
+
+### 🔄 使用 IFW 自行打包
+
+> 需要预先安装 [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/)
+
+```bash
+# 在项目根目录运行
+build_installer.bat
+```
+
+脚本会自动完成：Release 构建 → 文件收集 → IFW 打包，最终生成 `ClawPP-Installer-v1.0.0.exe`。
 
 ### 🔨 从源码构建
 

@@ -106,11 +106,24 @@
 
 ## 📦 Installation
 
-### 📥 Download Installer (Recommended)
+###  Download Installer (Recommended)
 
 Get the latest Windows installer (.exe) from [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases). Double-click to install — zero config needed.
 
 > 💡 Installer under 100MB, one-click install, ready to use out of the box
+>
+> 📦 Installer file: `ClawPP-Installer-v1.0.0.exe` (57.7 MB)
+
+### 🔄 Build Installer with IFW
+
+> Requires [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/) to be installed first
+
+```bash
+# Run from project root
+build_installer.bat
+```
+
+The script handles everything: Release build → gather files → IFW packaging → generates `ClawPP-Installer-v1.0.0.exe`.
 
 ### 🔨 Build from Source
 
