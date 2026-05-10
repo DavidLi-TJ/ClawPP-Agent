@@ -3,7 +3,7 @@
   <a href="README_EN.md"><img src="https://img.shields.io/badge/🇬🇧_English-蓝色?style=for-the-badge&color=blue" alt="English"/></a>
 </p>
 
----
+***
 
 <p align="center">
   <img src="icon.png" alt="Claw++ Icon" width="128" height="128"/>
@@ -41,7 +41,7 @@
   <img src="https://img.shields.io/github/contributors/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=blue&logo=github&logoColor=white&labelColor=1A1B26" alt="contributors"/>
 </p>
 
----
+***
 
 ## 📖 目录
 
@@ -66,18 +66,11 @@
 - [📜 许可证](#-许可证)
 - [💡 致谢](#-致谢)
 
----
+***
 
-##  项目简介
+## 项目简介
 
 > **Claw++** 是一个基于 Qt/C++ 的现代化 AI Agent 桌面应用程序，专为 Windows 平台打造。它实现了完整的 ReAct（Reasoning + Acting）推理循环，支持 **23 种模型服务商**（涵盖 OpenAI、Anthropic、Gemini、DeepSeek、智谱等国内外主流平台），并提供丰富的工具调用能力和智能记忆管理。项目采用 Qt Quick 6 构建高颜值 Windows 11 风格玻璃质感界面，支持实时流式对话、会话管理、上下文压缩、技能系统等企业级功能。
-
-<details>
-<summary> 界面预览</summary>
-
-![Claw++ 主界面](pic.png)
-
-</details>
 
 - 🤖 **ReAct 推理引擎**：思考-行动-观察循环，支持多轮自主推理与工具调用
 - 🔧 **9 大内置工具**：文件读写、Shell 命令、网络请求、子代理、搜索等
@@ -85,39 +78,39 @@
 - 🔐 **三级权限系统**：Safe / Moderate / Dangerous，Shell 风险评分 1-4 级
 - 🧠 **四级记忆压缩**：Trim → Dedupe → Fold → Summarize 渐进式压缩管道
 - 🎯 **技能插件系统**：Markdown 格式技能定义，YAML 元数据，运行时热加载
--  **Win11 玻璃质感 UI**：毛玻璃面板、液态按钮、涟漪效果、流畅动画
+- **Win11 玻璃质感 UI**：毛玻璃面板、液态按钮、涟漪效果、流畅动画
 - 🌐 **23 种模型服务商**：全面覆盖国内外主流大模型平台
 - 💾 **SQLite 持久化**：会话、消息、记忆全量存储，支持导入导出
 
 ### 🌐 支持的模型服务商
 
-| 类别 | 服务商 |
-|------|--------|
-| **国际主流** | OpenAI |
-| | Anthropic |
-| | Google Gemini |
-| | Mistral AI |
-| | Groq |
-| | OpenRouter |
-| | GitHub Copilot |
-| | Azure OpenAI |
-| | OpenAI Codex |
-| **国内主流** | DeepSeek |
-| | 智谱AI |
-| | Z.ai |
-| | 月之暗面 |
-| | 阿里通义 |
-| | 硅基流动 |
-| | 阶跃星辰 |
-| | MiniMax |
-| | 火山引擎 |
-| | BytePlus |
-| | AI Hub Mix |
-| **本地部署** | Ollama |
-| | OpenVINO |
-| | vLLM |
+| 类别       | 服务商            |
+| -------- | -------------- |
+| **国际主流** | OpenAI         |
+| <br />   | Anthropic      |
+| <br />   | Google Gemini  |
+| <br />   | Mistral AI     |
+| <br />   | Groq           |
+| <br />   | OpenRouter     |
+| <br />   | GitHub Copilot |
+| <br />   | Azure OpenAI   |
+| <br />   | OpenAI Codex   |
+| **国内主流** | DeepSeek       |
+| <br />   | 智谱AI           |
+| <br />   | Z.ai           |
+| <br />   | 月之暗面           |
+| <br />   | 阿里通义           |
+| <br />   | 硅基流动           |
+| <br />   | 阶跃星辰           |
+| <br />   | MiniMax        |
+| <br />   | 火山引擎           |
+| <br />   | BytePlus       |
+| <br />   | AI Hub Mix     |
+| **本地部署** | Ollama         |
+| <br />   | OpenVINO       |
+| <br />   | vLLM           |
 
----
+***
 
 ## 🚀 功能特性
 
@@ -138,7 +131,7 @@
   </table>
 </div>
 
----
+***
 
 ## 🏗️ 架构设计
 
@@ -175,7 +168,7 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
----
+***
 
 ## 🛠️ 技术栈
 
@@ -192,30 +185,29 @@
   <img src="https://img.shields.io/badge/Visual_Studio_Code-0078D4?style=flat-square&logo=visual-studio-code&logoColor=white" alt="VSCode"/>
 </div>
 
----
+***
 
 ## 📸 项目截图
 
-> 💡 在此处添加项目截图，展示 Claw++ 的实际运行效果。
 
-<div align="center">
-  <img src="screenshots/main-ui.png" alt="主界面" width="800"/>
-  <p><i>Claw++ 主界面</i></p>
-  
-  <img src="screenshots/chat-view.png" alt="聊天界面" width="800"/>
-  <p><i>实时流式对话界面</i></p>
-</div>
+![主界面](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/pic.png)
 
----
+<p align="center"><i>Claw++ 主界面</i></p>
+
+![Token 配置](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/pic2.png)
+
+<p align="center"><i>Token 配置界面</i></p>
+
+***
 
 ## 📦 快速开始
 
 ### 📋 环境要求
 
-| 依赖 | 版本要求 |
-|------|----------|
-| Qt | 6.5+ |
-| CMake | 3.20+ |
+| 依赖      | 版本要求                           |
+| ------- | ------------------------------ |
+| Qt      | 6.5+                           |
+| CMake   | 3.20+                          |
 | C++ 编译器 | MSVC 2019+ / GCC 8+ / Clang 9+ |
 
 ### 🔨 构建步骤
@@ -245,7 +237,7 @@ cmake --build . --config Release
 ./bin/ClawPP
 ```
 
----
+***
 
 ## 📁 项目结构
 
@@ -283,7 +275,7 @@ cpqclaw/
 └── README.md                     # 项目说明文档
 ```
 
----
+***
 
 ## 🔧 开发指南
 
@@ -318,6 +310,7 @@ ProviderManager::instance().registerProvider("my", new MyProvider());
 ### 调试技巧
 
 使用日志系统输出调试信息：
+
 ```cpp
 LOG_INFO("消息内容");
 LOG_DEBUG("调试信息");
@@ -326,7 +319,7 @@ LOG_ERROR("错误信息");
 
 日志文件位置: `~/.clawpp/logs/app.log`
 
----
+***
 
 ## 🎓 关于项目
 
@@ -334,7 +327,7 @@ LOG_ERROR("错误信息");
 
 项目使用 **Qt/C++** 框架实现，旨在探索 AI Agent 在桌面应用中的实际应用场景。
 
----
+***
 
 ## 📊 项目统计
 
@@ -344,13 +337,13 @@ LOG_ERROR("错误信息");
   </a>
 </div>
 
----
+***
 
 ## 📜 许可证
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
----
+***
 
 ## 💡 致谢
 
@@ -359,7 +352,7 @@ LOG_ERROR("错误信息");
 - Qt 框架提供的优秀开发基础
 - 所有开源项目的贡献者
 
----
+***
 
 <p align="center">
   <b>⬆️ 觉得有帮助？给个 Star 支持一下吧！⬆️</b>
