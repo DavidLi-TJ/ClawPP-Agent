@@ -1880,7 +1880,6 @@ ApplicationWindow {
     Item {
         id: backgroundContainer
         anchors.fill: parent
-        visible: root.settingBackgroundBlurRadius === 0
 
         Rectangle {
             id: backgroundLayer
@@ -1960,27 +1959,21 @@ ApplicationWindow {
                         spacing: 4
 
                         RowLayout {
-                            spacing: 8
+                            spacing: 10
                             Image {
                                 source: "qrc:/app/icon.png"
-                                sourceSize.width: 44
-                                sourceSize.height: 44
-                                width: 44
-                                height: 44
+                                sourceSize.width: 64
+                                sourceSize.height: 64
+                                width: 64
+                                height: 64
                                 fillMode: Image.PreserveAspectFit
                             }
                             Text {
                                 text: "Claw++"
                                 color: root.textPrimary
-                                font.pixelSize: 28
+                                font.pixelSize: 32
                                 font.bold: true
                             }
-                        }
-
-                        Text {
-                            text: "Win11 Glass Command Center"
-                            color: root.textSecondary
-                            font.pixelSize: 13
                         }
                     }
                 }
