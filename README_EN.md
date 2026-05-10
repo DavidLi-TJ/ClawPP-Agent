@@ -1,0 +1,125 @@
+<p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/🇨🇳_中文-红色?style=for-the-badge&color=red" alt="中文"/></a>
+  <a href="README_EN.md"><img src="https://img.shields.io/badge/🇬🇧_English-蓝色?style=for-the-badge&color=blue" alt="English"/></a>
+</p>
+
+---
+
+<p align="center">
+  <img src="icon.png" alt="Claw++ Icon" width="128" height="128"/>
+</p>
+
+<h1 align="center">Claw++ — AI Agent Desktop Application</h1>
+
+<p align="center">
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
+    <img src="https://img.shields.io/github/stars/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=starship&color=orange&logoColor=white&labelColor=1A1B26" alt="stars"/>
+  </a>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/network/members">
+    <img src="https://img.shields.io/github/forks/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=git&color=blue&logoColor=white&labelColor=1A1B26" alt="forks"/>
+  </a>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/issues">
+    <img src="https://img.shields.io/github/issues/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=github&color=red&logoColor=white&labelColor=1A1B26" alt="issues"/>
+  </a>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=green&logoColor=white&labelColor=1A1B26" alt="license"/>
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Qt-6.5+-green?style=for-the-badge&logo=qt&logoColor=white" alt="Qt 6.5+"/>
+  <img src="https://img.shields.io/badge/C%2B%2B-17-blue?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++ 17"/>
+  <img src="https://img.shields.io/badge/CMake-3.20+-orange?style=for-the-badge&logo=cmake&logoColor=white" alt="CMake 3.20+"/>
+  <img src="https://img.shields.io/badge/SQLite-3.x-purple?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
+</p>
+
+---
+
+## Introduction
+
+**Claw++** is a modern AI Agent desktop application built with Qt/C++. It implements a complete ReAct (Reasoning + Acting) loop, supports multiple LLM providers (OpenAI / Anthropic / Gemini), and provides rich tool calling capabilities with intelligent memory management.
+
+Key features:
+- **ReAct Engine**: Think-Act-Observe loop with multi-turn reasoning
+- **9 Built-in Tools**: file read/write, shell, network, subagent, search, etc.
+- **Streaming Chat**: SSE-based real-time responses with Markdown rendering
+- **3-Level Permission System**: Safe / Moderate / Dangerous with shell risk scoring
+- **4-Stage Memory Compression**: Trim → Dedupe → Fold → Summarize pipeline
+- **Skill Plugin System**: Markdown skill definitions with YAML metadata
+- **Win11 Glass UI**: Frosted panels, liquid buttons, ripple effects, smooth animations
+- **Multi-Platform Bots**: Telegram / Feishu / Discord / WeChat integration
+- **SQLite Persistence**: Full session and message storage with import/export
+- **Multi-Provider**: OpenAI / Anthropic / Gemini, one-click model switching
+
+---
+
+## Screenshots
+
+> Screenshots will be added here.
+
+---
+
+## Quick Start
+
+### Requirements
+
+| Dependency | Version |
+|------------|---------|
+| Qt | 6.5+ |
+| CMake | 3.20+ |
+| C++ Compiler | MSVC 2019+ / GCC 8+ / Clang 9+ |
+
+### Build
+
+```bash
+git clone https://github.com/DavidLi-TJ/ClawPP-Agent.git
+cd ClawPP-Agent
+mkdir build && cd build
+cmake ..
+cmake --build . --config Release
+```
+
+### Run
+
+```bash
+# Windows
+.\bin\ClawPP.exe
+
+# Linux/Mac
+./bin/ClawPP
+```
+
+---
+
+## Project Structure
+
+```
+cpqclaw/
+├── src/                    # C++ source code
+│   ├── agent/              # Agent core (ReAct, context builder)
+│   ├── application/        # Application layer (service, session)
+│   ├── common/             # Types, constants
+│   ├── infrastructure/     # Config, database, network, logging
+│   ├── memory/             # Memory system
+│   ├── permission/         # Permission management
+│   ├── provider/           # LLM providers
+│   ├── skill/              # Skill system
+│   ├── tool/               # Tool system
+│   └── ui/                 # Qt Widgets-based UI
+├── qml/                    # QML UI files
+├── resources/              # Resource files
+├── CMakeLists.txt          # Build configuration
+└── README.md               # Documentation (Chinese)
+```
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/DavidLi-TJ">DavidLi-TJ</a> | NKU Course Project
+</p>

@@ -1,8 +1,15 @@
 <p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/🇨🇳_中文-红色?style=for-the-badge&color=red" alt="中文"/></a>
+  <a href="README_EN.md"><img src="https://img.shields.io/badge/🇬🇧_English-蓝色?style=for-the-badge&color=blue" alt="English"/></a>
+</p>
+
+---
+
+<p align="center">
   <img src="icon.png" alt="Claw++ Icon" width="128" height="128"/>
 </p>
 
-<h1 align="center">Claw++ — AI Agent Desktop Application</h1>
+<h1 align="center">Claw++ — AI Agent 桌面应用</h1>
 
 <p align="center">
   <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
@@ -288,14 +295,8 @@ LOG_ERROR("错误信息");
 ## 📊 项目统计
 
 <div align="center">
-  <h3>📈 Stars 趋势</h3>
-  <a href="https://starchart.cc/DavidLi-TJ/ClawPP-Agent">
-    <img src="https://starchart.cc/DavidLi-TJ/ClawPP-Agent.svg?variant=adaptive" alt="starchart"/>
-  </a>
-  
-  <h3>👥 Contributors</h3>
-  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=DavidLi-TJ/ClawPP-Agent&max=100" alt="contributors"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
+    <img src="https://img.shields.io/github/stars/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=starship&color=orange&logoColor=white&labelColor=1A1B26" alt="stars"/>
   </a>
 </div>
 
