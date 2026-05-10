@@ -37,19 +37,54 @@
 
 ## Introduction
 
-**Claw++** is a modern AI Agent desktop application built with Qt/C++. It implements a complete ReAct (Reasoning + Acting) loop, supports multiple LLM providers (OpenAI / Anthropic / Gemini), and provides rich tool calling capabilities with intelligent memory management.
+> **Claw++** is a modern AI Agent desktop application built with Qt/C++ for the Windows platform. It implements a complete ReAct (Reasoning + Acting) loop, supports **23 LLM service providers** (covering OpenAI, Anthropic, Gemini, DeepSeek, Zhipu and other mainstream platforms), and provides rich tool calling capabilities with intelligent memory management. Built with Qt Quick 6, it features a stunning Windows 11 glass morphism UI with real-time streaming chat, session management, context compression, and a skill plugin system.
 
-Key features:
-- **ReAct Engine**: Think-Act-Observe loop with multi-turn reasoning
-- **9 Built-in Tools**: file read/write, shell, network, subagent, search, etc.
-- **Streaming Chat**: SSE-based real-time responses with Markdown rendering
-- **3-Level Permission System**: Safe / Moderate / Dangerous with shell risk scoring
-- **4-Stage Memory Compression**: Trim → Dedupe → Fold → Summarize pipeline
-- **Skill Plugin System**: Markdown skill definitions with YAML metadata
-- **Win11 Glass UI**: Frosted panels, liquid buttons, ripple effects, smooth animations
-- **Multi-Platform Bots**: Telegram / Feishu / Discord / WeChat integration
-- **SQLite Persistence**: Full session and message storage with import/export
-- **Multi-Provider**: OpenAI / Anthropic / Gemini, one-click model switching
+<details>
+<summary>UI Preview</summary>
+
+![Claw++ Main UI](pic2.png)
+
+</details>
+
+### Key Features
+
+- **ReAct Engine**: Think-Act-Observe loop with multi-turn autonomous reasoning
+- **9 Built-in Tools**: file read/write, shell commands, network requests, subagents, search, etc.
+- **Streaming Chat**: SSE-based real-time responses with Markdown rendering and code highlighting
+- **3-Level Permission System**: Safe / Moderate / Dangerous with shell risk scoring (1-4)
+- **4-Stage Memory Compression**: Trim → Dedupe → Fold → Summarize progressive pipeline
+- **Skill Plugin System**: Markdown skill definitions with YAML metadata, hot-reload at runtime
+- **Win11 Glass Morphism UI**: Frosted panels, liquid buttons, ripple effects, smooth animations
+- **23 LLM Providers**: Comprehensive coverage of domestic and international platforms
+- **SQLite Persistence**: Full session, message, and memory storage with import/export
+
+### Supported Model Providers
+
+| Category | Provider |
+|----------|----------|
+| **Global** | OpenAI |
+| | Anthropic |
+| | Google Gemini |
+| | Mistral AI |
+| | Groq |
+| | OpenRouter |
+| | GitHub Copilot |
+| | Azure OpenAI |
+| | OpenAI Codex |
+| **China** | DeepSeek |
+| | Zhipu AI |
+| | Z.ai |
+| | Moonshot AI |
+| | DashScope |
+| | SiliconFlow |
+| | StepFun |
+| | MiniMax |
+| | Volcengine |
+| | BytePlus |
+| | AI Hub Mix |
+| **Local** | Ollama |
+| | OpenVINO |
+| | vLLM |
 
 ---
 
