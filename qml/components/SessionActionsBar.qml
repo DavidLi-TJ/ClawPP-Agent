@@ -2,22 +2,23 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "../"
 
 Item {
     id: root
 
     property var backend: null
     property bool hasSession: backend ? backend.currentSessionId.length > 0 : false
-    property color textPrimary: "#0F172A"
-    property color textSecondary: "#64748B"
-    property color borderColor: Qt.rgba(0.58, 0.64, 0.72, 0.18)
+    property color textPrimary: DesignTokens.textPrimary
+    property color textSecondary: DesignTokens.textSecondary
+    property color borderColor: DesignTokens.glassBorder
 
     signal importRequested()
     signal renameRequested()
     signal deleteRequested()
     signal pinRequested()
 
-    implicitHeight: 132
+    implicitHeight: 124
 
     function requestImport() {
         importDialog.open()
@@ -51,60 +52,167 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 18
-        color: Qt.rgba(255, 255, 255, 0.46)
-        border.color: root.borderColor
+        radius: DesignTokens.radiusLg
+        color: Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.20)
+        border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.18)
+        border.width: 0.5
+
+        Rectangle {
+            anchors {
+                top: parent.top
+                horizontalCenter: parent.horizontalCenter
+            }
+            width: parent.width * 0.72
+            height: 0.5
+            color: Qt.rgba(1, 1, 1, 0.38)
+        }
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
+            anchors.margins: DesignTokens.spaceLg
+            spacing: DesignTokens.spaceSm
 
             Text {
                 text: "会话操作"
                 color: root.textPrimary
-                font.pixelSize: 13
-                font.bold: true
+                font.pixelSize: DesignTokens.fontSizeSubheadline
+                font.weight: Font.DemiBold
             }
 
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
-                columnSpacing: 8
-                rowSpacing: 8
+                columnSpacing: DesignTokens.spaceSm
+                rowSpacing: DesignTokens.spaceSm
 
                 Button {
+                    id: importBtn
                     text: "导入"
                     Layout.fillWidth: true
+
+                    background: Rectangle {
+                        implicitHeight: 34
+                        radius: DesignTokens.radiusSm
+                        color: importBtn.pressed
+                            ? Qt.rgba(0, 0, 0, 0.06)
+                            : importBtn.hovered
+                                ? Qt.rgba(0, 0, 0, 0.03)
+                                : Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.22)
+                        border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.18)
+                        border.width: 0.5
+
+                        Behavior on color {
+                            ColorAnimation { duration: DesignTokens.animationFast }
+                        }
+                    }
+                    contentItem: Text {
+                        text: importBtn.text
+                        font.pixelSize: DesignTokens.fontSizeBody
+                        color: root.textPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                     onClicked: fileDialog.open()
                 }
 
                 Button {
+                    id: renameBtn
                     text: "重命名"
                     Layout.fillWidth: true
                     enabled: root.hasSession
+
+                    background: Rectangle {
+                        implicitHeight: 34
+                        radius: DesignTokens.radiusSm
+                        color: renameBtn.pressed
+                            ? Qt.rgba(0, 0, 0, 0.06)
+                            : renameBtn.hovered && renameBtn.enabled
+                                ? Qt.rgba(0, 0, 0, 0.03)
+                                : Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.22)
+                        border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.18)
+                        border.width: 0.5
+                        opacity: renameBtn.enabled ? 1.0 : 0.5
+
+                        Behavior on color {
+                            ColorAnimation { duration: DesignTokens.animationFast }
+                        }
+                    }
+                    contentItem: Text {
+                        text: renameBtn.text
+                        font.pixelSize: DesignTokens.fontSizeBody
+                        color: root.textPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        opacity: renameBtn.enabled ? 1.0 : 0.5
+                    }
                     onClicked: root.requestRename()
                 }
 
                 Button {
-                    text: root.backend && root.backend.currentSessionId.length > 0 ? "置顶/取消" : "置顶/取消"
+                    id: pinBtn
+                    text: "置顶/取消"
                     Layout.fillWidth: true
                     enabled: root.hasSession
+
+                    background: Rectangle {
+                        implicitHeight: 34
+                        radius: DesignTokens.radiusSm
+                        color: pinBtn.pressed
+                            ? Qt.rgba(0, 0, 0, 0.06)
+                            : pinBtn.hovered && pinBtn.enabled
+                                ? Qt.rgba(0, 0, 0, 0.03)
+                                : Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.22)
+                        border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.18)
+                        border.width: 0.5
+                        opacity: pinBtn.enabled ? 1.0 : 0.5
+
+                        Behavior on color {
+                            ColorAnimation { duration: DesignTokens.animationFast }
+                        }
+                    }
+                    contentItem: Text {
+                        text: pinBtn.text
+                        font.pixelSize: DesignTokens.fontSizeBody
+                        color: root.textPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        opacity: pinBtn.enabled ? 1.0 : 0.5
+                    }
                     onClicked: root.requestPin()
                 }
 
                 Button {
+                    id: deleteBtn
                     text: "删除"
                     Layout.fillWidth: true
                     enabled: root.hasSession
+
+                    background: Rectangle {
+                        implicitHeight: 34
+                        radius: DesignTokens.radiusSm
+                        color: deleteBtn.pressed
+                            ? Qt.rgba(1, 59/255, 48/255, 0.08)
+                            : deleteBtn.hovered && deleteBtn.enabled
+                                ? Qt.rgba(1, 59/255, 48/255, 0.04)
+                                : Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.22)
+                        border.color: Qt.rgba(1, 59/255, 48/255, 0.18)
+                        border.width: 0.5
+                        opacity: deleteBtn.enabled ? 1.0 : 0.5
+
+                        Behavior on color {
+                            ColorAnimation { duration: DesignTokens.animationFast }
+                        }
+                    }
+                    contentItem: Text {
+                        text: deleteBtn.text
+                        font.pixelSize: DesignTokens.fontSizeBody
+                        color: DesignTokens.danger
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        opacity: deleteBtn.enabled ? 1.0 : 0.4
+                    }
                     onClicked: root.requestDelete()
                 }
-            }
-
-            Text {
-                text: root.backend ? root.backend.usageText : "本次消耗：0 Token"
-                color: root.textSecondary
-                font.pixelSize: 12
             }
         }
     }

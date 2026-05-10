@@ -11,10 +11,15 @@ namespace {
 
 bool pathLooksLikeContent(const QString& path) {
     const QString trimmed = path.trimmed();
+    static const QRegularExpression windowsAbsPath(QStringLiteral("^[A-Za-z]:[\\\\/].+"));
+    static const QRegularExpression windowsUncPath(QStringLiteral("^\\\\\\\\[^\\\\/]+[\\\\/][^\\\\/]+"));
+    if (windowsAbsPath.match(trimmed).hasMatch() || windowsUncPath.match(trimmed).hasMatch()) {
+        return false;
+    }
     return trimmed.contains('\n')
         || trimmed.startsWith(QLatin1Char('#'))
         || trimmed.length() > 240
-        || trimmed.contains(QRegularExpression(QStringLiteral("[<>:\"|?*]")));
+        || trimmed.contains(QRegularExpression(QStringLiteral("[<>\"|?*]")));
 }
 
 QString defaultGeneratedPath() {

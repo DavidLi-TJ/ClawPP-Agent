@@ -1,10 +1,16 @@
 <RCC>
     <qresource>
         <file>ClawPP.qmlproject</file>
+        <file>DesignTokens.qml</file>
         <file>components/AppShell.qml</file>
         <file>components/ChatBubble.qml</file>
         <file>components/ChatComposer.qml</file>
+        <file>components/FrostedDialog.qml</file>
+        <file>components/FrostedOverlay.qml</file>
+        <file>components/FrostedPanel.qml</file>
         <file>components/GlassCard.qml</file>
+        <file>components/RippleButton.qml</file>
+        <file>components/RippleEffect.qml</file>
         <file>components/SessionActionsBar.qml</file>
         <file>components/SessionRow.qml</file>
         <file>components/SidebarItem.qml</file>

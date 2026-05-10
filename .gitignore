@@ -66,10 +66,21 @@ memory/MEMORY.md
 *.sqlite3
 
 # Test and debug data
-*.txt
 react.txt
 scroll_dump.txt
 tokens.txt
+
+# AI assistant files
+.claude/
+CLAUDE.md
+.trae/
+
+# Installer artifacts
+installer/
+
+# Screenshots
+001.png
+screenshots/
 
 # Temporary files
 *.tmp

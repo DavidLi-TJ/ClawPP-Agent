@@ -1,22 +1,24 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=auto&height=300&section=header&text=Claw%2B%2B&fontSize=90&animation=fadeIn&fontAlignY=38&desc=AI%20Agent%20Desktop%20App&descAlignY=51&descAlign=62" alt="header"/>
+  <img src="icon.png" alt="Claw++ Icon" width="128" height="128"/>
 </p>
 
+<h1 align="center">Claw++ — AI Agent Desktop Application</h1>
+
 <p align="center">
-  <a href="https://github.com/DavidLi-TJ/clawpp/stargazers">
-    <img src="https://img.shields.io/github/stars/DavidLi-TJ/clawpp?style=for-the-badge&logo=starship&color=orange&logoColor=white&labelColor=1A1B26" alt="stars"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
+    <img src="https://img.shields.io/github/stars/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=starship&color=orange&logoColor=white&labelColor=1A1B26" alt="stars"/>
   </a>
-  <a href="https://github.com/DavidLi-TJ/clawpp/network/members">
-    <img src="https://img.shields.io/github/forks/DavidLi-TJ/clawpp?style=for-the-badge&logo=git&color=blue&logoColor=white&labelColor=1A1B26" alt="forks"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/network/members">
+    <img src="https://img.shields.io/github/forks/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=git&color=blue&logoColor=white&labelColor=1A1B26" alt="forks"/>
   </a>
-  <a href="https://github.com/DavidLi-TJ/clawpp/issues">
-    <img src="https://img.shields.io/github/issues/DavidLi-TJ/clawpp?style=for-the-badge&logo=github&color=red&logoColor=white&labelColor=1A1B26" alt="issues"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/issues">
+    <img src="https://img.shields.io/github/issues/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=github&color=red&logoColor=white&labelColor=1A1B26" alt="issues"/>
   </a>
-  <a href="https://github.com/DavidLi-TJ/clawpp/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/DavidLi-TJ/clawpp?style=for-the-badge&color=green&logoColor=white&labelColor=1A1B26" alt="license"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=green&logoColor=white&labelColor=1A1B26" alt="license"/>
   </a>
-  <a href="https://img.shields.io/github/last-commit/DavidLi-TJ/clawpp">
-    <img src="https://img.shields.io/github/last-commit/DavidLi-TJ/clawpp?style=for-the-badge&color=purple&logo=git&logoColor=white&labelColor=1A1B26" alt="last commit"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent">
+    <img src="https://img.shields.io/github/last-commit/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=purple&logo=git&logoColor=white&labelColor=1A1B26" alt="last commit"/>
   </a>
 </p>
 
@@ -28,8 +30,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/repo-size/DavidLi-TJ/clawpp?style=for-the-badge&color=yellow&logo=hackthebox&logoColor=white&labelColor=1A1B26" alt="repo size"/>
-  <img src="https://img.shields.io/github/contributors/DavidLi-TJ/clawpp?style=for-the-badge&color=blue&logo=github&logoColor=white&labelColor=1A1B26" alt="contributors"/>
+  <img src="https://img.shields.io/github/repo-size/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=yellow&logo=hackthebox&logoColor=white&labelColor=1A1B26" alt="repo size"/>
+  <img src="https://img.shields.io/github/contributors/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&color=blue&logo=github&logoColor=white&labelColor=1A1B26" alt="contributors"/>
 </p>
 
 ---
@@ -51,14 +53,18 @@
 
 ## ✨ 项目简介
 
-> **Claw++** 是一个基于 Qt/C++ 的 AI Agent 桌面应用程序，支持 ReAct 模式推理、工具调用、会话管理等核心功能。
+> **Claw++** 是一个基于 Qt/C++ 的现代化 AI Agent 桌面应用程序。它实现了完整的 ReAct（Reasoning + Acting）推理循环，支持多模型提供商（OpenAI / Anthropic / Gemini），并提供丰富的工具调用能力和智能记忆管理。项目采用 Qt Quick 6 打造高颜值 Windows 11 风格玻璃质感界面，支持实时流式对话、会话管理、上下文压缩、技能系统等企业级功能。
 
-- 🤖 **智能推理**：采用 ReAct（Reasoning + Acting）架构，实现思考-行动-观察循环
-- 🔧 **工具扩展**：支持文件系统、Shell 命令、网络请求等多种工具
-- 💬 **实时交互**：基于 SSE 的流式对话，响应迅速
-- 🔐 **安全可控**：三级权限管理系统，保障操作安全
-- 🧠 **记忆优化**：自动压缩对话历史，支持长期记忆
-- 📱 **现代界面**：Qt Quick 6 打造的高颜值 UI
+- 🤖 **ReAct 推理引擎**：思考-行动-观察循环，支持多轮自主推理与工具调用
+- 🔧 **9 大内置工具**：文件读写、Shell 命令、网络请求、子代理、搜索等
+- 💬 **实时流式对话**：基于 SSE 的流式响应，Markdown 渲染，代码高亮
+- 🔐 **三级权限系统**：Safe / Moderate / Dangerous，Shell 风险评分 1-4 级
+- 🧠 **四级记忆压缩**：Trim → Dedupe → Fold → Summarize 渐进式压缩管道
+- 🎯 **技能插件系统**：Markdown 格式技能定义，YAML 元数据，运行时热加载
+- 📱 **Win11 玻璃质感 UI**：毛玻璃面板、液态按钮、涟漪效果、流畅动画
+- 🌐 **多平台集成**：Telegram / 飞书 / Discord / 钉钉 / 微信 / QQ 机器人支持
+- 💾 **SQLite 持久化**：会话、消息、记忆全量存储，支持导入导出
+- 🔄 **多 Provider 支持**：OpenAI / Anthropic / Gemini，一键切换模型
 
 ---
 
@@ -165,8 +171,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/DavidLi-TJ/clawpp.git
-cd clawpp
+git clone https://github.com/DavidLi-TJ/ClawPP-Agent.git
+cd ClawPP-Agent
 
 # 创建构建目录
 mkdir build && cd build
@@ -283,18 +289,13 @@ LOG_ERROR("错误信息");
 
 <div align="center">
   <h3>📈 Stars 趋势</h3>
-  <a href="https://starchart.cc/DavidLi-TJ/clawpp">
-    <img src="https://starchart.cc/DavidLi-TJ/clawpp.svg?variant=adaptive" alt="starchart"/>
-  </a>
-  
-  <h3>🏆 GitHub Trophy</h3>
-  <a href="https://github.com/ryo-ma/github-profile-trophy">
-    <img src="https://github-profile-trophy.vercel.app/?username=DavidLi-TJ&theme=darkhub&row=1&column=7&margin-w=15" alt="trophies"/>
+  <a href="https://starchart.cc/DavidLi-TJ/ClawPP-Agent">
+    <img src="https://starchart.cc/DavidLi-TJ/ClawPP-Agent.svg?variant=adaptive" alt="starchart"/>
   </a>
   
   <h3>👥 Contributors</h3>
-  <a href="https://github.com/DavidLi-TJ/clawpp/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=DavidLi-TJ/clawpp&max=100" alt="contributors"/>
+  <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=DavidLi-TJ/ClawPP-Agent&max=100" alt="contributors"/>
   </a>
 </div>
 

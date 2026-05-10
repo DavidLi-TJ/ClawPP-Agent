@@ -1,6 +1,8 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
+import QtQuick.Effects
 
 ApplicationWindow {
     id: root
@@ -11,10 +13,10 @@ ApplicationWindow {
     color: "#F4F5F7"
     font.family: "Segoe UI Variable Text"
 
-    property color bgTop: "#F4F5F7"
-    property color bgBottom: "#E3E8EE"
-    property color panelFill: Qt.rgba(1, 1, 1, 0.75)
-    property color panelBorder: Qt.rgba(1, 1, 1, 0.4)
+    property color bgTop: "#F2F2F7"
+    property color bgBottom: "#EAEAEE"
+    property color panelFill: Qt.rgba(240 / 255, 242 / 255, 248 / 255, settingPanelOpacity)
+    property color panelBorder: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.30)
     property color textPrimary: "#111827"
     property color textSecondary: "#6B7280"
     property color accent: "#0066FF"
@@ -37,6 +39,9 @@ ApplicationWindow {
     property string settingMessageChannel: "telegram"
     property int settingChatFontSize: 13
     property real settingChatLineHeight: 1.45
+    property real settingPanelOpacity: 0.75
+    property real settingBackgroundBlurRadius: 0.0
+    property string settingBackgroundImagePath: ""
     property string settingsTestResult: ""
     property string settingsExternalTestResult: ""
     property string logsContent: ""
@@ -197,7 +202,7 @@ ApplicationWindow {
         textFormat: TextEdit.PlainText
     }
 
-    Dialog {
+    GlassDialog {
         id: newSessionDialog
         title: "新建会话"
         modal: true
@@ -230,7 +235,7 @@ ApplicationWindow {
                 font.pixelSize: 12
             }
 
-            TextField {
+            GlassTextField {
                 id: newSessionNameField
                 Layout.fillWidth: true
                 placeholderText: "例如：需求评审"
@@ -238,7 +243,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: batchDeleteDialog
         title: "批量删除会话"
         modal: true
@@ -266,7 +271,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: renameSessionDialog
         title: "重命名会话"
         modal: true
@@ -295,7 +300,7 @@ ApplicationWindow {
                 font.pixelSize: 12
             }
 
-            TextField {
+            GlassTextField {
                 id: renameSessionNameField
                 Layout.fillWidth: true
                 placeholderText: "例如：需求评审"
@@ -303,7 +308,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: tokenResetDialog
         title: "确认重置 Token 统计"
         modal: true
@@ -332,7 +337,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: probeResultDialog
         title: "API 测试结果"
         modal: true
@@ -351,7 +356,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: quickActionDialog
         title: "快捷操作"
         modal: true
@@ -375,7 +380,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    GlassDialog {
         id: workflowDialog
         title: "启动工作流"
         modal: true
@@ -413,7 +418,7 @@ ApplicationWindow {
                 font.pixelSize: 12
             }
 
-            ComboBox {
+            GlassComboBox {
                 id: workflowTemplateSelector
                 Layout.fillWidth: true
                 model: [
@@ -433,7 +438,7 @@ ApplicationWindow {
                 font.pixelSize: 12
             }
 
-            ComboBox {
+            GlassComboBox {
                 id: workflowModeSelector
                 Layout.fillWidth: true
                 model: [
@@ -460,6 +465,16 @@ ApplicationWindow {
                 wrapMode: TextArea.Wrap
                 placeholderText: "例如：调研某方案并输出可执行步骤；或在当前项目实现某功能并给出验证结果。"
             }
+        }
+    }
+
+    FileDialog {
+        id: backgroundImageDialog
+        title: "选择背景图片"
+        nameFilters: ["图片文件 (*.png *.jpg *.jpeg *.bmp *.webp)", "All files (*)"]
+        onAccepted: {
+            root.settingBackgroundImagePath = selectedFile.toString().replace("file:///", "").replace(/\//g, "\\")
+            settingsSaveTimer.restart()
         }
     }
 
@@ -870,6 +885,13 @@ ApplicationWindow {
             settingMessageChannel = settings.messageChannel ? settings.messageChannel : "telegram"
             settingChatFontSize = settings.chatFontSize ? Math.max(11, Math.min(20, Number(settings.chatFontSize))) : 13
             settingChatLineHeight = settings.chatLineHeight ? Math.max(1.15, Math.min(2.0, Number(settings.chatLineHeight))) : 1.45
+            settingPanelOpacity = settings.panelOpacity ? Math.max(0.35, Math.min(0.95, Number(settings.panelOpacity))) : 0.75
+            settingBackgroundBlurRadius = settings.backgroundBlurRadius ? Math.max(0, Math.min(36, Number(settings.backgroundBlurRadius))) : 0
+            var savedBgPath = settings.backgroundImagePath ? settings.backgroundImagePath : ""
+            if (savedBgPath.length > 0) {
+                settingBackgroundImagePath = savedBgPath
+                cachedBgPath = savedBgPath
+            }
 
             if (apiKeyField) apiKeyField.text = settingApiKey
             if (baseUrlField) baseUrlField.text = settingBaseUrl
@@ -953,7 +975,10 @@ ApplicationWindow {
                 wecomWebhookUrl: settingWecomWebhookUrl,
                 messageChannel: settingMessageChannel,
                 chatFontSize: settingChatFontSize,
-                chatLineHeight: settingChatLineHeight
+                chatLineHeight: settingChatLineHeight,
+                panelOpacity: settingPanelOpacity,
+                backgroundBlurRadius: settingBackgroundBlurRadius,
+                backgroundImagePath: settingBackgroundImagePath
             })
             settingsTestResult = "设置已保存并应用。"
         }
@@ -1328,6 +1353,9 @@ ApplicationWindow {
     }
 
     function openPanel(panelName) {
+        if (activePanel === "settings" && panelName !== "settings") {
+            saveSettingsContent()
+        }
         activePanel = panelName
         if (panelName === "settings") {
             loadSettingsContent()
@@ -1424,6 +1452,17 @@ ApplicationWindow {
         loadCompressionInfo()
     }
 
+    onClosing: {
+        saveSettingsContent()
+    }
+
+    Timer {
+        id: settingsSaveTimer
+        interval: 600
+        repeat: false
+        onTriggered: saveSettingsContent()
+    }
+
     Timer {
         interval: 3000
         running: true
@@ -1444,6 +1483,172 @@ ApplicationWindow {
         }
     }
 
+    component GlassDialog: Dialog {
+        id: glassDlg
+        modal: true
+        padding: 20
+        topPadding: 20
+        bottomPadding: 0
+
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+
+        header: Rectangle {
+            implicitHeight: 36
+            radius: 18
+            color: Qt.rgba(252/255, 252/255, 255/255, 0.92)
+            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.25)
+            border.width: 0.5
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: parent.width * 0.55
+                height: 0.5
+                radius: 0.25
+                color: Qt.rgba(1, 1, 1, 0.50)
+            }
+
+            Rectangle {
+                anchors {
+                    left: parent.left
+                    leftMargin: 0.5
+                    right: parent.right
+                    rightMargin: 0.5
+                    bottom: parent.bottom
+                }
+                height: 0.5
+                radius: 0.25
+                color: Qt.rgba(190/255, 190/255, 205/255, 0.20)
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: glassDlg.title
+                font.pixelSize: 13
+                font.weight: Font.SemiBold
+                color: root.textPrimary
+            }
+        }
+
+        background: Rectangle {
+            radius: 18
+            clip: true
+            color: Qt.rgba(252/255, 252/255, 255/255, 0.96)
+            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.30)
+            border.width: 0.5
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: parent.width * 0.55
+                height: 0.5
+                radius: 0.25
+                color: Qt.rgba(1, 1, 1, 0.50)
+            }
+        }
+
+        footer: RowLayout {
+            spacing: 12
+
+            Item { Layout.fillWidth: true }
+
+            Button {
+                id: dlgCancelBtn
+                text: "取消"
+                implicitWidth: 80
+                implicitHeight: 32
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                hoverEnabled: true
+
+                contentItem: Text {
+                    text: dlgCancelBtn.text
+                    font: dlgCancelBtn.font
+                    color: root.textPrimary
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    radius: 16
+                    color: dlgCancelBtn.pressed
+                        ? Qt.rgba(210/255, 210/255, 225/255, 0.52)
+                        : (dlgCancelBtn.hovered
+                            ? Qt.rgba(225/255, 225/255, 240/255, 0.48)
+                            : Qt.rgba(240/255, 240/255, 250/255, 0.38))
+                    border.color: Qt.rgba(1, 1, 1, 0.55)
+                    border.width: 0.5
+
+                    Rectangle {
+                        anchors {
+                            top: parent.top
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        width: parent.width * 0.55
+                        height: 0.5
+                        radius: 0.25
+                        color: Qt.rgba(1, 1, 1, 0.50)
+                    }
+
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+
+                onClicked: glassDlg.reject()
+            }
+
+            Button {
+                id: dlgAcceptBtn
+                text: "确定"
+                implicitWidth: 80
+                implicitHeight: 32
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                hoverEnabled: true
+
+                contentItem: Text {
+                    text: dlgAcceptBtn.text
+                    font: dlgAcceptBtn.font
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    radius: 16
+                    color: dlgAcceptBtn.pressed
+                        ? Qt.rgba(0, 100/255, 220/255, 0.92)
+                        : (dlgAcceptBtn.hovered
+                            ? Qt.rgba(0, 110/255, 235/255, 0.88)
+                            : Qt.rgba(0, 122/255, 255/255, 0.82))
+                    border.color: Qt.rgba(1, 1, 1, 0.45)
+                    border.width: 0.5
+
+                    Rectangle {
+                        anchors {
+                            top: parent.top
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        width: parent.width * 0.55
+                        height: 0.5
+                        radius: 0.25
+                        color: Qt.rgba(1, 1, 1, 0.42)
+                    }
+
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+
+                onClicked: glassDlg.accept()
+            }
+
+            Item { Layout.fillWidth: true }
+        }
+    }
+
     component GlassButton: Button {
         id: btn
         hoverEnabled: true
@@ -1455,12 +1660,10 @@ ApplicationWindow {
         bottomPadding: 8
 
         background: Rectangle {
-            radius: 8
-            border.color: btn.hovered ? Qt.rgba(0.58, 0.64, 0.72, 0.4) : Qt.rgba(0.58, 0.64, 0.72, 0.18)
-            border.width: 1
-            color: btn.down ? "#E5E7EB" : (btn.hovered ? "#F3F4F6" : "transparent")
-            
-            // 彻底去除渐变和3D内框，使用极简拟态颜色
+            radius: 10
+            border.color: btn.hovered ? Qt.rgba(160/255, 160/255, 180/255, 0.45) : Qt.rgba(190/255, 190/255, 205/255, 0.25)
+            border.width: 0.5
+            color: btn.down ? Qt.rgba(210/255, 210/255, 225/255, 0.40) : (btn.hovered ? Qt.rgba(225/255, 225/255, 240/255, 0.35) : Qt.rgba(240/255, 240/255, 248/255, 0.22))
         }
     }
 
@@ -1488,10 +1691,10 @@ ApplicationWindow {
             radius: 11
             color: root.activePanel === navBtn.panelKey
                 ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.14)
-                : (navBtn.hovered ? Qt.rgba(1, 1, 1, 0.74) : Qt.rgba(1, 1, 1, 0.52))
+                : (navBtn.hovered ? Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.35) : Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20))
             border.color: root.activePanel === navBtn.panelKey
                 ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.32)
-                : root.panelBorder
+                : Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                 
             Behavior on color { ColorAnimation { duration: 150 } }
         }
@@ -1551,14 +1754,83 @@ ApplicationWindow {
         }
     }
 
+    component GlassTextField: TextField {
+        id: glassField
+        font.pixelSize: 12
+        leftPadding: 12
+        rightPadding: 12
+        topPadding: 8
+        bottomPadding: 8
+
+        background: Rectangle {
+            radius: 12
+            border.color: glassField.activeFocus
+                ? Qt.rgba(0/255, 122/255, 255/255, 0.45)
+                : Qt.rgba(195/255, 198/255, 212/255, 0.30)
+            border.width: glassField.activeFocus ? 1 : 0.5
+            color: Qt.rgba(245/255, 245/255, 250/255, 0.40)
+
+            Behavior on border.color {
+                ColorAnimation { duration: 150 }
+            }
+            Behavior on border.width {
+                NumberAnimation { duration: 100 }
+            }
+        }
+    }
+
+    component GlassComboBox: ComboBox {
+        id: glassCombo
+        font.pixelSize: 12
+
+        background: Rectangle {
+            radius: 12
+            color: Qt.rgba(245/255, 245/255, 250/255, 0.40)
+            border.color: glassCombo.hovered
+                ? Qt.rgba(160/255, 160/255, 180/255, 0.50)
+                : Qt.rgba(190/255, 190/255, 205/255, 0.30)
+            border.width: glassCombo.hovered ? 1 : 0.5
+
+            Behavior on border.color {
+                ColorAnimation { duration: 150 }
+            }
+            Behavior on border.width {
+                NumberAnimation { duration: 100 }
+            }
+        }
+
+        popup: Popup {
+            y: glassCombo.height + 4
+            width: glassCombo.width
+            implicitHeight: contentItem.implicitHeight
+            padding: 6
+
+            contentItem: ListView {
+                clip: true
+                implicitHeight: contentHeight
+                model: glassCombo.popup.visible ? glassCombo.delegateModel : null
+                currentIndex: glassCombo.highlightedIndex
+
+                ScrollIndicator.vertical: ScrollIndicator {}
+            }
+
+            background: Rectangle {
+                radius: 14
+                color: Qt.rgba(252/255, 252/255, 255/255, 0.97)
+                border.color: Qt.rgba(190/255, 190/255, 205/255, 0.30)
+                border.width: 0.5
+            }
+        }
+    }
+
     component GlassMenu: Menu {
         id: glassMenu
         
         background: Rectangle {
             implicitWidth: 160
             radius: 12
-            color: Qt.rgba(255/255, 255/255, 255/255, 0.95)
-            border.color: Qt.rgba(148/255, 163/255, 184/255, 0.4)
+            color: Qt.rgba(250/255, 250/255, 255/255, 0.92)
+            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.35)
         }
         
         delegate: MenuItem {
@@ -1567,7 +1839,7 @@ ApplicationWindow {
             
             background: Rectangle {
                 radius: 6
-                color: menuItem.highlighted ? Qt.rgba(0, 102/255, 255/255, 0.1) : "transparent"
+                color: menuItem.highlighted ? Qt.rgba(0/255, 122/255, 255/255, 0.10) : "transparent"
                 anchors.fill: parent
                 anchors.margins: 4
                 
@@ -1581,8 +1853,8 @@ ApplicationWindow {
                 color: menuItem.highlighted ? "#0066FF" : root.textPrimary
                 font.pixelSize: 12
                 font.weight: menuItem.highlighted ? Font.DemiBold : Font.Normal
+                horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
-                leftPadding: 12
                 
                 Behavior on color {
                     ColorAnimation { duration: 150 }
@@ -1605,38 +1877,57 @@ ApplicationWindow {
         }
     }
 
-    Rectangle {
+    Item {
+        id: backgroundContainer
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: root.bgTop }
-            GradientStop { position: 1.0; color: root.bgBottom }
+        visible: root.settingBackgroundBlurRadius === 0
+
+        Rectangle {
+            id: backgroundLayer
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: root.bgTop }
+                GradientStop { position: 1.0; color: root.bgBottom }
+            }
+        }
+
+        Image {
+            id: customBackgroundImage
+            anchors.fill: parent
+            source: cachedBgPath.length > 0 ? root.normalizedFileUrl(cachedBgPath) : ""
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            asynchronous: false
+            cache: true
+            visible: status === Image.Ready && source.toString().length > 0
+            opacity: visible ? 1.0 : 0.0
         }
     }
 
-    Rectangle {
-        width: 800
-        height: 800
-        radius: 400
-        x: -200
-        y: -200
-        color: Qt.rgba(0 / 255, 102 / 255, 255 / 255, 0.08)
+    property string cachedBgPath: ""
+    onSettingBackgroundImagePathChanged: {
+        if (settingBackgroundImagePath.length > 0) {
+            cachedBgPath = settingBackgroundImagePath
+        } else {
+            cachedBgPath = ""
+        }
     }
 
-    Rectangle {
-        width: 700
-        height: 700
-        radius: 350
-        x: root.width - width + 150
-        y: root.height - height + 100
-        color: Qt.rgba(147 / 255, 51 / 255, 234 / 255, 0.08)
-    }
-
-    Rectangle {
+    ShaderEffectSource {
+        id: backgroundSource
         anchors.fill: parent
-        anchors.margins: 10
-        radius: 28
-        color: Qt.rgba(1, 1, 1, 0.12)
-        border.color: Qt.rgba(1, 1, 1, 0.2)
+        sourceItem: backgroundContainer
+        visible: false
+    }
+
+    MultiEffect {
+        id: backgroundBlur
+        anchors.fill: parent
+        source: backgroundSource
+        blurEnabled: root.settingBackgroundBlurRadius > 0
+        blurMax: 64
+        blur: Math.min(1.0, root.settingBackgroundBlurRadius / 36.0)
+        visible: root.settingBackgroundBlurRadius > 0
     }
 
     RowLayout {
@@ -1649,7 +1940,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             radius: 24
             color: root.panelFill
-            border.color: root.panelBorder
+            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -1660,8 +1951,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     implicitHeight: 88
                     radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.58)
-                    border.color: root.panelBorder
+                    color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.28)
+                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.22)
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -1672,10 +1963,10 @@ ApplicationWindow {
                             spacing: 8
                             Image {
                                 source: "qrc:/app/icon.png"
-                                sourceSize.width: 30
-                                sourceSize.height: 30
-                                width: 30
-                                height: 30
+                                sourceSize.width: 44
+                                sourceSize.height: 44
+                                width: 44
+                                height: 44
                                 fillMode: Image.PreserveAspectFit
                             }
                             Text {
@@ -1700,8 +1991,8 @@ ApplicationWindow {
                     Layout.preferredHeight: navColumn.implicitHeight + 20
                     Layout.minimumHeight: navColumn.implicitHeight + 20
                     radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.54)
-                    border.color: root.panelBorder
+                    color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.22)
+                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                     clip: true
 
                     ColumnLayout {
@@ -1755,8 +2046,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.48)
-                    border.color: root.panelBorder
+                    color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.18)
+                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.15)
                     clip: true
 
                     ColumnLayout {
@@ -1838,8 +2129,8 @@ ApplicationWindow {
                                 width: sessionList.width
                                 height: 56
                                 radius: 14
-                                color: selectedValue ? root.accentSoft : Qt.rgba(1, 1, 1, 0.56)
-                                border.color: selectedValue ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.34) : root.panelBorder
+                                color: selectedValue ? root.accentSoft : Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.22)
+                                border.color: selectedValue ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.34) : Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                 
                                 Behavior on color { ColorAnimation { duration: 150 } }
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -1977,7 +2268,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             radius: 24
             color: root.panelFill
-            border.color: root.panelBorder
+            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -1988,8 +2279,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     implicitHeight: 112
                     radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.58)
-                    border.color: root.panelBorder
+                    color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.28)
+                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.22)
 
                     RowLayout {
                         anchors.fill: parent
@@ -2098,7 +2389,7 @@ ApplicationWindow {
                                 implicitHeight: 32
                                 radius: 10
                                 color: Qt.rgba(1, 1, 1, 0.55)
-                                border.color: root.panelBorder
+                                border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                 Text {
                                     anchors.centerIn: parent
@@ -2126,8 +2417,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     implicitHeight: 58
                     radius: 14
-                    color: Qt.rgba(1, 1, 1, 0.52)
-                    border.color: root.panelBorder
+                    color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.22)
+                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                     RowLayout {
                         anchors.fill: parent
@@ -2171,8 +2462,8 @@ ApplicationWindow {
 
                                 background: Rectangle {
                                     radius: 10
-                                    color: selectedValue ? root.accentSoft : Qt.rgba(1, 1, 1, 0.58)
-                                    border.color: selectedValue ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.34) : root.panelBorder
+                                    color: selectedValue ? root.accentSoft : Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.25)
+                                    border.color: selectedValue ? Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.34) : Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                     
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -2267,8 +2558,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 radius: 16
-                                color: Qt.rgba(1, 1, 1, 0.46)
-                                border.color: root.panelBorder
+                                color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.18)
+                                border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.15)
 
                                 ListView {
                                     id: chatList
@@ -2462,7 +2753,7 @@ ApplicationWindow {
                                         width: chatList.width
                                         height: compactToolMessage
                                             ? compactToolRow.implicitHeight + 8
-                                            : bubbleWrap.implicitHeight
+                                            : bubbleWrap.height
                                             + ((systemMessage || toolCardMessage) ? 28 : 8)
                                             + (metaInfo.visible ? (metaInfo.implicitHeight + 6) : 0)
 
@@ -2494,29 +2785,57 @@ ApplicationWindow {
                                             id: bubbleWrap
                                             visible: !compactToolMessage
                                             width: stableBubbleWidth
-                                            implicitHeight: bubble.implicitHeight
-                                            anchors.right: userMessage ? parent.right : undefined
-                                            anchors.left: userMessage ? undefined : parent.left
+                                            height: bubble.height
+                                            x: userMessage ? parent.width - width : 0
 
                                             Rectangle {
                                                 id: bubble
-                                                anchors.fill: parent
-                                            implicitHeight: toolCardMessage ? toolCardColumn.implicitHeight + 16 : bubbleText.implicitHeight + 22
-                                            radius: 14
-                                            color: userMessage ? "#0066FF"
-                                                : (thinkingMessage ? Qt.rgba(245 / 255, 245 / 255, 245 / 255, 0.9)
-                                                    : ((actionMessage || (toolCardMessage && toolCardKind === "Action")) ? Qt.rgba(219 / 255, 234 / 255, 254 / 255, 0.85)
-                                                        : (preExecCard ? Qt.rgba(237 / 255, 233 / 255, 254 / 255, 0.88)
+                                                width: parent.width
+                                                height: toolCardMessage ? toolCardColumn.implicitHeight + 16 : bubbleText.implicitHeight + 22
+                                            radius: 18
+                                            color: userMessage ? Qt.rgba(210/255, 235/255, 255/255, 0.52)
+                                                : (thinkingMessage ? Qt.rgba(235/255, 245/255, 255/255, 0.50)
+                                                    : ((actionMessage || (toolCardMessage && toolCardKind === "Action")) ? Qt.rgba(220/255, 240/255, 255/255, 0.50)
+                                                        : (preExecCard ? Qt.rgba(225/255, 238/255, 255/255, 0.50)
                                                         : ((observationMessage || (toolCardMessage && toolCardKind === "Observation"))
-                                                            ? ((observationError || toolCardStatus === "ERR") ? Qt.rgba(254 / 255, 226 / 255, 226 / 255, 0.85) : Qt.rgba(220 / 255, 252 / 255, 231 / 255, 0.85))
-                                                            : Qt.rgba(248 / 255, 250 / 255, 252 / 255, 0.98)))))
-                                            border.color: userMessage ? Qt.rgba(0 / 255, 102 / 255, 255 / 255, 0.6)
-                                                : (thinkingMessage ? Qt.rgba(107 / 255, 114 / 255, 128 / 255, 0.35)
-                                                    : ((actionMessage || (toolCardMessage && toolCardKind === "Action")) ? Qt.rgba(37 / 255, 99 / 255, 235 / 255, 0.35)
-                                                        : (preExecCard ? Qt.rgba(124 / 255, 58 / 255, 237 / 255, 0.35)
+                                                            ? ((observationError || toolCardStatus === "ERR") ? Qt.rgba(255/255, 230/255, 230/255, 0.50) : Qt.rgba(220/255, 245/255, 235/255, 0.48))
+                                                            : Qt.rgba(235/255, 245/255, 255/255, 0.48)))))
+                                            border.color: userMessage ? Qt.rgba(150/255, 210/255, 255/255, 0.45)
+                                                : (thinkingMessage ? Qt.rgba(175/255, 210/255, 248/255, 0.36)
+                                                    : ((actionMessage || (toolCardMessage && toolCardKind === "Action")) ? Qt.rgba(140/255, 200/255, 255/255, 0.36)
+                                                        : (preExecCard ? Qt.rgba(165/255, 155/255, 235/255, 0.36)
                                                         : ((observationMessage || (toolCardMessage && toolCardKind === "Observation"))
-                                                            ? ((observationError || toolCardStatus === "ERR") ? Qt.rgba(220 / 255, 38 / 255, 38 / 255, 0.4) : Qt.rgba(5 / 255, 150 / 255, 105 / 255, 0.4))
-                                                            : Qt.rgba(120 / 255, 138 / 255, 168 / 255, 0.42)))))
+                                                            ? ((observationError || toolCardStatus === "ERR") ? Qt.rgba(235/255, 140/255, 140/255, 0.40) : Qt.rgba(130/255, 210/255, 175/255, 0.36))
+                                                            : Qt.rgba(180/255, 215/255, 250/255, 0.32)))))
+                                            border.width: 0.5
+
+                                            Rectangle {
+                                                anchors {
+                                                    top: parent.top
+                                                    horizontalCenter: parent.horizontalCenter
+                                                }
+                                                width: parent.width * 0.72
+                                                height: 0.5
+                                                radius: 0.25
+                                                color: userMessage ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(1, 1, 1, 0.52)
+                                            }
+
+                                            Rectangle {
+                                                anchors {
+                                                    left: parent.left
+                                                    leftMargin: 1
+                                                    top: parent.top
+                                                    topMargin: 1
+                                                    right: parent.right
+                                                    rightMargin: 1
+                                                    bottom: parent.bottom
+                                                    bottomMargin: 1
+                                                }
+                                                radius: 17
+                                                color: "transparent"
+                                                border.color: Qt.rgba(1, 1, 1, 0.30)
+                                                border.width: 0.5
+                                            }
 
                                             Column {
                                                 id: toolCardColumn
@@ -2626,22 +2945,24 @@ ApplicationWindow {
                                                 }
                                             }
 
-                                            Text {
+                                            TextEdit {
                                                 id: bubbleText
                                                 visible: !toolCardMessage
                                                 anchors.left: parent.left
                                                 anchors.top: parent.top
                                                 anchors.leftMargin: 11
                                                 anchors.topMargin: 11
+                                                width: parent.width - 22
                                                 text: rawText
-                                                textFormat: Text.MarkdownText
-                                                color: userMessage ? "#FFFFFF" : root.textPrimary
-                                                wrapMode: Text.Wrap
+                                                textFormat: userMessage ? TextEdit.PlainText : TextEdit.MarkdownText
+                                                color: userMessage ? "#0A3D6E" : root.textPrimary
+                                                wrapMode: TextEdit.WordWrap
                                                 font.pixelSize: root.settingChatFontSize
                                                 font.italic: thinkingMessage
-                                                lineHeightMode: Text.ProportionalHeight
-                                                lineHeight: root.settingChatLineHeight
-                                                width: parent.width - 22
+                                                readOnly: true
+                                                selectByMouse: true
+                                                persistentSelection: true
+                                                activeFocusOnPress: true
                                             }
                                             GlassMenu {
                                                 id: messageMenu
@@ -2725,8 +3046,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 implicitHeight: 122
                                 radius: 16
-                                color: Qt.rgba(1, 1, 1, 0.64)
-                                border.color: root.panelBorder
+                                color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.28)
+                                border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.22)
 
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -2791,8 +3112,7 @@ ApplicationWindow {
                                         GlassButton {
                                             text: "打开记忆"
                                             onClicked: {
-                                                root.activePanel = "memory"
-                                                root.loadMemoryContent()
+                                                root.openPanel("memory")
                                                 quickActionDialog.text = "已切换到 Memory 面板，可查看/编辑 MEMORY 与 HISTORY。"
                                                 quickActionDialog.open()
                                             }
@@ -2895,8 +3215,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: 16
-                        color: Qt.rgba(1, 1, 1, 0.5)
-                        border.color: root.panelBorder
+                        color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20)
+                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -2939,6 +3259,8 @@ ApplicationWindow {
                                 id: settingsScroll
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                background: null
+                                clip: true
 
                                 ColumnLayout {
                                     width: settingsScroll.availableWidth
@@ -3013,7 +3335,102 @@ ApplicationWindow {
                                         }
                                     }
 
-                                    TextField {
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 1
+                                        color: Qt.rgba(108 / 255, 124 / 255, 152 / 255, 0.2)
+                                    }
+
+                                    Text {
+                                        text: "界面背景与玻璃"
+                                        color: root.accent
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                        font.capitalization: Font.AllUppercase
+                                        font.letterSpacing: 1.1
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        GlassTextField {
+                                            Layout.fillWidth: true
+                                            text: root.settingBackgroundImagePath
+                                            placeholderText: "背景图片本地路径"
+                                            onTextChanged: root.settingBackgroundImagePath = text
+                                        }
+
+                                        GlassButton {
+                                            text: "选择图片"
+                                            onClicked: backgroundImageDialog.open()
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Text {
+                                            text: "背景模糊"
+                                            color: root.textPrimary
+                                            font.pixelSize: 11
+                                            Layout.preferredWidth: 72
+                                        }
+
+                                        Slider {
+                                            id: backgroundBlurSlider
+                                            Layout.fillWidth: true
+                                            from: 0
+                                            to: 36
+                                            stepSize: 1
+                                            value: root.settingBackgroundBlurRadius
+                                            onMoved: {
+                                                root.settingBackgroundBlurRadius = Math.round(value)
+                                                settingsSaveTimer.restart()
+                                            }
+                                        }
+
+                                        Text {
+                                            text: root.settingBackgroundBlurRadius <= 0 ? "清晰" : ("模糊 " + Math.round(root.settingBackgroundBlurRadius))
+                                            color: root.textSecondary
+                                            font.pixelSize: 11
+                                            Layout.preferredWidth: 64
+                                            horizontalAlignment: Text.AlignRight
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Text {
+                                            text: "面板清晰度"
+                                            color: root.textPrimary
+                                            font.pixelSize: 11
+                                            Layout.preferredWidth: 72
+                                        }
+
+                                        Slider {
+                                            id: panelOpacitySlider
+                                            Layout.fillWidth: true
+                                            from: 0.35
+                                            to: 0.95
+                                            stepSize: 0.01
+                                            value: root.settingPanelOpacity
+                                            onMoved: root.settingPanelOpacity = Math.round(value * 100) / 100
+                                        }
+
+                                        Text {
+                                            text: Math.round(root.settingPanelOpacity * 100) + "%"
+                                            color: root.textSecondary
+                                            font.pixelSize: 11
+                                            Layout.preferredWidth: 64
+                                            horizontalAlignment: Text.AlignRight
+                                        }
+                                    }
+
+                                    GlassTextField {
                                         id: apiKeyField
                                         Layout.fillWidth: true
                                         placeholderText: "API Key"
@@ -3026,7 +3443,7 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 8
 
-                                    ComboBox {
+                                    GlassComboBox {
                                         id: providerUrlSelector
                                         Layout.fillWidth: true
                                         implicitHeight: 34
@@ -3035,7 +3452,7 @@ ApplicationWindow {
                                         displayText: root.currentProviderPresetLabel()
                                         background: Rectangle {
                                             radius: 10
-                                            color: Qt.rgba(1, 1, 1, 0.66)
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.26)
                                             border.color: Qt.rgba(120 / 255, 138 / 255, 168 / 255, 0.32)
                                         }
                                         delegate: ItemDelegate {
@@ -3076,7 +3493,7 @@ ApplicationWindow {
                                         font.pixelSize: 10
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: baseUrlField
                                         Layout.fillWidth: true
                                         placeholderText: "Base URL（只读）"
@@ -3084,7 +3501,7 @@ ApplicationWindow {
                                         readOnly: true
                                     }
 
-                                    ComboBox {
+                                    GlassComboBox {
                                         id: providerModelSelector
                                         Layout.fillWidth: true
                                         implicitHeight: 34
@@ -3093,7 +3510,7 @@ ApplicationWindow {
                                         displayText: root.currentProviderModelLabel()
                                         background: Rectangle {
                                             radius: 10
-                                            color: Qt.rgba(1, 1, 1, 0.66)
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.26)
                                             border.color: Qt.rgba(120 / 255, 138 / 255, 168 / 255, 0.32)
                                         }
                                         delegate: ItemDelegate {
@@ -3136,7 +3553,7 @@ ApplicationWindow {
                                         elide: Text.ElideRight
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: modelField
                                         Layout.fillWidth: true
                                         placeholderText: "模型名称（可手动修改）"
@@ -3144,7 +3561,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingModel = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: telegramField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("telegram")
@@ -3154,7 +3571,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingTelegramToken = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: feishuAppIdField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("feishu")
@@ -3163,7 +3580,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingFeishuAppId = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: feishuSecretField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("feishu")
@@ -3173,7 +3590,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingFeishuAppSecret = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: feishuVerifyField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("feishu")
@@ -3193,7 +3610,7 @@ ApplicationWindow {
                                         onValueModified: root.settingFeishuPort = value
                                     }
 
-                                    ComboBox {
+                                    GlassComboBox {
                                         id: messageChannelSelector
                                         Layout.fillWidth: true
                                         model: ["telegram", "feishu", "discord", "dingtalk", "wechat", "qq", "wecom"]
@@ -3206,7 +3623,7 @@ ApplicationWindow {
                                         }
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: discordWebhookField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("discord")
@@ -3215,7 +3632,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingDiscordWebhookUrl = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: dingtalkWebhookField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("dingtalk")
@@ -3224,7 +3641,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingDingTalkWebhookUrl = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: wechatWebhookField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("wechat")
@@ -3233,7 +3650,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingWechatWebhookUrl = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: qqWebhookField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("qq")
@@ -3242,7 +3659,7 @@ ApplicationWindow {
                                         onTextChanged: root.settingQqWebhookUrl = text
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         id: wecomWebhookField
                                         Layout.fillWidth: true
                                         visible: root.isChannelSelected("wecom")
@@ -3316,14 +3733,14 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 8
 
-                                        ComboBox {
+                                        GlassComboBox {
                                             id: agentDocSelector
                                             Layout.fillWidth: true
                                             model: agentDocEntries
                                             textRole: "title"
                                             background: Rectangle {
                                                 radius: 10
-                                                color: Qt.rgba(1, 1, 1, 0.66)
+                                                color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.26)
                                                 border.color: Qt.rgba(120 / 255, 138 / 255, 168 / 255, 0.32)
                                             }
                                             onActivated: {
@@ -3362,7 +3779,7 @@ ApplicationWindow {
                                         }
                                     }
 
-                                    TextField {
+                                    GlassTextField {
                                         Layout.fillWidth: true
                                         readOnly: true
                                         text: root.agentDocPath
@@ -3380,8 +3797,8 @@ ApplicationWindow {
                                         onTextChanged: root.agentDocContent = text
                                         background: Rectangle {
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                         }
                                     }
 
@@ -3412,8 +3829,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: 16
-                        color: Qt.rgba(1, 1, 1, 0.5)
-                        border.color: root.panelBorder
+                        color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20)
+                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -3438,6 +3855,8 @@ ApplicationWindow {
                             }
 
                             ScrollView {
+                                background: null
+                                clip: true
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
@@ -3449,8 +3868,8 @@ ApplicationWindow {
                                     color: root.textPrimary
                                     background: Rectangle {
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                     }
                                 }
                             }
@@ -3461,8 +3880,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: 16
-                        color: Qt.rgba(1, 1, 1, 0.5)
-                        border.color: root.panelBorder
+                        color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20)
+                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -3542,8 +3961,8 @@ ApplicationWindow {
                                         onTextChanged: root.memoryContent = text
                                         background: Rectangle {
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                         }
                                     }
                                 }
@@ -3560,8 +3979,8 @@ ApplicationWindow {
                                         onTextChanged: root.historyContent = text
                                         background: Rectangle {
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
                                         }
                                     }
                                 }
@@ -3571,7 +3990,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                TextField {
+                                GlassTextField {
                                     id: memoryQueryField
                                     Layout.fillWidth: true
                                     placeholderText: "检索记忆（关键词）"
@@ -3604,8 +4023,8 @@ ApplicationWindow {
                                     width: ListView.view.width
                                     implicitHeight: 34
                                     radius: 8
-                                    color: Qt.rgba(1, 1, 1, 0.62)
-                                    border.color: root.panelBorder
+                                    color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                    border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                     Text {
                                         anchors.fill: parent
@@ -3626,8 +4045,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: 16
-                        color: Qt.rgba(1, 1, 1, 0.5)
-                        border.color: root.panelBorder
+                        color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20)
+                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -3649,7 +4068,7 @@ ApplicationWindow {
                                     font.pixelSize: 10
                                 }
 
-                                ComboBox {
+                                GlassComboBox {
                                     id: tokenYearSelector
                                     model: tokenYearOptionsModel
                                     textRole: "label"
@@ -3668,7 +4087,7 @@ ApplicationWindow {
                                     font.pixelSize: 10
                                 }
 
-                                ComboBox {
+                                GlassComboBox {
                                     id: tokenDaysSelector
                                     model: [7, 30, 90, 180, 365]
                                     implicitWidth: 90
@@ -3702,6 +4121,8 @@ ApplicationWindow {
                                 id: tokenScroll
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                background: null
+                                clip: true
 
                                 ColumnLayout {
                                     width: tokenScroll.availableWidth
@@ -3731,8 +4152,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3748,8 +4169,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3765,8 +4186,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3787,8 +4208,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3804,8 +4225,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3821,8 +4242,8 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             implicitHeight: 72
                                             radius: 12
-                                            color: Qt.rgba(1, 1, 1, 0.62)
-                                            border.color: root.panelBorder
+                                            color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                            border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                             ColumnLayout {
                                                 anchors.fill: parent
@@ -3839,8 +4260,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 62
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                         RowLayout {
                                             anchors.fill: parent
@@ -3909,8 +4330,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 210
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                         ColumnLayout {
                                             anchors.fill: parent
@@ -4033,8 +4454,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 210
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                         ColumnLayout {
                                             anchors.fill: parent
@@ -4161,8 +4582,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 190
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                         ColumnLayout {
                                             anchors.fill: parent
@@ -4264,8 +4685,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         implicitHeight: 280
                                         radius: 12
-                                        color: Qt.rgba(1, 1, 1, 0.62)
-                                        border.color: root.panelBorder
+                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.22)
+                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                         ColumnLayout {
                                             anchors.fill: parent
@@ -4283,7 +4704,7 @@ ApplicationWindow {
 
                                                 Item { Layout.fillWidth: true }
 
-                                                ComboBox {
+                                                GlassComboBox {
                                                     id: tokenResetYearSelector
                                                     model: tokenYearOptionsModel
                                                     textRole: "label"
@@ -4296,7 +4717,7 @@ ApplicationWindow {
                                                     }
                                                 }
 
-                                                ComboBox {
+                                                GlassComboBox {
                                                     id: tokenResetMonthSelector
                                                     model: tokenMonthOptionsModel
                                                     textRole: "label"
@@ -4329,8 +4750,8 @@ ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 Layout.fillHeight: true
                                                 radius: 10
-                                                color: Qt.rgba(1, 1, 1, 0.5)
-                                                border.color: root.panelBorder
+                                                color: Qt.rgba(240 / 255, 242 / 255, 248 / 255, 0.20)
+                                                border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                                 ListView {
                                                     anchors.fill: parent
@@ -4347,8 +4768,8 @@ ApplicationWindow {
                                                         width: ListView.view.width
                                                         implicitHeight: 30
                                                         radius: 8
-                                                        color: Qt.rgba(1, 1, 1, 0.64)
-                                                        border.color: root.panelBorder
+                                                        color: Qt.rgba(235 / 255, 238 / 255, 245 / 255, 0.24)
+                                                        border.color: Qt.rgba(195 / 255, 198 / 255, 212 / 255, 0.18)
 
                                                         RowLayout {
                                                             anchors.fill: parent

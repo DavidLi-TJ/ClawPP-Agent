@@ -883,7 +883,16 @@ void ReactAgentCore::executeToolCalls() {
     for (int i = 0; i < validToolCalls.size(); ++i) {
         const ToolCall& call = validToolCalls[i];
         if (m_preExecutedResults.contains(call.id)) {
-            results.append(m_preExecutedResults.take(call.id));
+            ToolResult cachedResult = m_preExecutedResults.take(call.id);
+            if (!cachedResult.success) {
+                // Pre-execution may have failed due to incomplete streaming args;
+                // re-execute with complete final arguments
+                remainingToolCalls.append(call);
+                remainingIndexes.append(i);
+                results.append(ToolResult(call.id, false, QStringLiteral("__placeholder__")));
+            } else {
+                results.append(cachedResult);
+            }
         } else {
             remainingToolCalls.append(call);
             remainingIndexes.append(i);

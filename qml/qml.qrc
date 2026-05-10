@@ -1,10 +1,16 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/qml">
+        <file>DesignTokens.qml</file>
         <file>Main.qml</file>
         <file>Main.ui.qml</file>
         <file>ClawPP.qmlproject</file>
         <file>components/GlassCard.qml</file>
+        <file>components/FrostedPanel.qml</file>
+        <file>components/FrostedOverlay.qml</file>
+        <file>components/FrostedDialog.qml</file>
+        <file>components/RippleButton.qml</file>
+        <file>components/RippleEffect.qml</file>
         <file>components/AppShell.qml</file>
         <file>components/SidebarPanel.qml</file>
         <file>components/WorkspacePanel.qml</file>

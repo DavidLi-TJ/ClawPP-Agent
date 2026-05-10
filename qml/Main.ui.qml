@@ -1,35 +1,15 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "."
 
 Rectangle {
     id: root
     width: 1600
     height: 960
-    color: "#F4F5F7"
+    color: DesignTokens.backgroundLight
 
     property var backend: null
-    property color bgTop: "#F4F5F7"
-    property color bgBottom: "#E3E8EE"
-    property color panelColor: Qt.rgba(1, 1, 1, 0.75)
-    property color panelBorder: Qt.rgba(1, 1, 1, 0.4)
-    property color textPrimary: "#111827"
-    property color textSecondary: "#6B7280"
-    property color accent: "#0066FF"
-    property color accentSoft: Qt.rgba(0 / 255, 102 / 255, 255 / 255, 0.12)
-    property color buttonBase: Qt.rgba(1, 1, 1, 0.56)
-    property color buttonHover: Qt.rgba(1, 1, 1, 0.72)
-    property color buttonDown: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.18)
-    property color buttonBorder: Qt.rgba(120 / 255, 138 / 255, 168 / 255, 0.32)
-    property color buttonTextColor: "#10233F"
-    property color glassTop: Qt.rgba(1, 1, 1, 0.84)
-    property color glassBottom: Qt.rgba(228 / 255, 237 / 255, 248 / 255, 0.62)
-    property color glassHoverTop: Qt.rgba(1, 1, 1, 0.92)
-    property color glassHoverBottom: Qt.rgba(235 / 255, 243 / 255, 252 / 255, 0.74)
-    property color glassDownTop: Qt.rgba(207 / 255, 227 / 255, 253 / 255, 0.90)
-    property color glassDownBottom: Qt.rgba(168 / 255, 205 / 255, 251 / 255, 0.72)
-    property color glassHighlight: Qt.rgba(1, 1, 1, 0.42)
-
     property var sessionsModel: backend && backend.sessionsModel ? backend.sessionsModel : demoSessions
     property var messagesModel: backend && backend.messagesModel ? backend.messagesModel : demoMessages
 
@@ -52,111 +32,123 @@ Rectangle {
 
     ListModel {
         id: demoSessions
-        ListElement { idValue: "demo-1"; name: "新聊天"; statusText: "active"; pinned: false; selected: true; updatedAt: "2026-03-29 10:00" }
-        ListElement { idValue: "demo-2"; name: "UI 重构"; statusText: "active"; pinned: true; selected: false; updatedAt: "2026-03-29 09:45" }
+        ListElement { idValue: "demo-1"; name: "新聊天"; statusText: "active"; pinned: false; selected: true; updatedAt: "2026-05-09 10:00" }
+        ListElement { idValue: "demo-2"; name: "UI 重构"; statusText: "active"; pinned: true; selected: false; updatedAt: "2026-05-09 09:45" }
     }
 
     ListModel {
         id: demoMessages
-        ListElement { isUser: false; displayContent: "欢迎使用 Claw++。现在你可以直接在 Main.ui.qml 改整个布局。" }
-        ListElement { isUser: true; displayContent: "太好了，我就想要这种一个主文件编辑。" }
-        ListElement { isUser: false; displayContent: "左边是控制面板，右边是会话内容，支持导入/重命名/删除/置顶。" }
+        ListElement { isUser: false; displayContent: "欢迎使用 Claw++。界面已升级为 iOS 风格玻璃质感设计。" }
+        ListElement { isUser: true; displayContent: "看起来非常现代和精致！" }
+        ListElement { isUser: false; displayContent: "是的，我们引入了统一的设计令牌系统、丰富的动画效果和精致的排版。" }
     }
 
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(1, 1, 1, 0.8)
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: 10
-        radius: 28
-        color: Qt.rgba(1, 1, 1, 0.14)
-        border.color: Qt.rgba(1, 1, 1, 0.2)
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#EBF2FA" }
+            GradientStop { position: 1.0; color: "#F4F7FC" }
+        }
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 12
+        anchors.margins: DesignTokens.spaceMd
+        spacing: DesignTokens.spaceMd
 
         Rectangle {
             Layout.preferredWidth: 340
             Layout.fillHeight: true
-            radius: 24
-            color: root.panelColor
-            border.color: root.panelBorder
+            radius: DesignTokens.radiusXl
+            color: DesignTokens.glassFillLight
+            border.color: DesignTokens.glassBorder
+            border.width: 0.5
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: parent.width * 0.72
+                height: 0.5
+                color: Qt.rgba(1, 1, 1, 0.38)
+            }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.margins: DesignTokens.spaceLg
+                spacing: DesignTokens.spaceMd
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 92
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.58)
-                    border.color: root.panelBorder
+                ColumnLayout {
+                    spacing: DesignTokens.spaceXxs
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 4
+                    Text {
+                        text: "Claw++"
+                        color: DesignTokens.textPrimary
+                        font.pixelSize: DesignTokens.fontSizeTitle1
+                        font.weight: Font.Bold
+                    }
 
-                        Text {
-                            text: "Claw++"
-                            color: root.textPrimary
-                            font.pixelSize: 28
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: "Win11 Glass Workspace"
-                            color: root.textSecondary
-                            font.pixelSize: 13
-                        }
+                    Text {
+                        text: "iOS Glass Workspace"
+                        color: DesignTokens.textSecondary
+                        font.pixelSize: DesignTokens.fontSizeBody
                     }
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 380
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.5)
-                    border.color: root.panelBorder
+                    implicitHeight: 340
+                    radius: DesignTokens.radiusMd
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.22)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
+
+                    Rectangle {
+                        anchors {
+                            top: parent.top
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        width: parent.width * 0.78
+                        height: 0.5
+                        color: Qt.rgba(1, 1, 1, 0.42)
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 6
+                        anchors.margins: DesignTokens.spaceMd
+                        spacing: DesignTokens.spaceSm
 
                         Text {
                             text: "会话操作"
-                            color: root.accent
-                            font.pixelSize: 11
-                            font.bold: true
+                            color: DesignTokens.accent
+                            font.pixelSize: DesignTokens.fontSizeCaption
+                            font.weight: Font.DemiBold
                             font.capitalization: Font.AllUppercase
-                            font.letterSpacing: 1.1
+                            font.letterSpacing: 1.4
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: DesignTokens.spaceSm
 
                             Button {
                                 id: createSessionButton
                                 text: "新建"
                                 Layout.fillWidth: true
                                 hoverEnabled: true
-                                font.pixelSize: 12
+                                font.pixelSize: DesignTokens.fontSizeBody
                                 font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
+                                palette.buttonText: DesignTokens.textPrimary
                                 background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
+                                    radius: DesignTokens.radiusSm
+                                    border.color: DesignTokens.glassBorder
+                                    border.width: 0.5
+                                    color: Qt.rgba(1, 1, 1, 0.72)
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: DesignTokens.animationFast }
+                                    }
                                 }
                             }
 
@@ -165,13 +157,18 @@ Rectangle {
                                 text: "刷新"
                                 Layout.fillWidth: true
                                 hoverEnabled: true
-                                font.pixelSize: 12
+                                font.pixelSize: DesignTokens.fontSizeBody
                                 font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
+                                palette.buttonText: DesignTokens.textPrimary
                                 background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
+                                    radius: DesignTokens.radiusSm
+                                    border.color: DesignTokens.glassBorder
+                                    border.width: 0.5
+                                    color: Qt.rgba(1, 1, 1, 0.72)
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: DesignTokens.animationFast }
+                                    }
                                 }
                             }
                         }
@@ -180,31 +177,38 @@ Rectangle {
                             id: renameField
                             Layout.fillWidth: true
                             placeholderText: "输入新会话名"
-                            color: root.textPrimary
-                            placeholderTextColor: Qt.rgba(96 / 255, 112 / 255, 137 / 255, 0.85)
+                            color: DesignTokens.textPrimary
+                            placeholderTextColor: DesignTokens.textTertiary
+                            font.pixelSize: DesignTokens.fontSizeBody
                             background: Rectangle {
-                                radius: 11
-                                color: Qt.rgba(1, 1, 1, 0.66)
-                                border.color: root.buttonBorder
+                                radius: DesignTokens.radiusSm
+                                color: Qt.rgba(1, 1, 1, 0.62)
+                                border.color: DesignTokens.glassBorder
+                                border.width: 0.5
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: DesignTokens.spaceSm
 
                             Button {
                                 id: renameSessionButton
                                 text: "重命名"
                                 Layout.fillWidth: true
                                 hoverEnabled: true
-                                font.pixelSize: 12
+                                font.pixelSize: DesignTokens.fontSizeBody
                                 font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
+                                palette.buttonText: DesignTokens.textPrimary
                                 background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
+                                    radius: DesignTokens.radiusSm
+                                    border.color: DesignTokens.glassBorder
+                                    border.width: 0.5
+                                    color: Qt.rgba(1, 1, 1, 0.72)
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: DesignTokens.animationFast }
+                                    }
                                 }
                             }
 
@@ -213,13 +217,18 @@ Rectangle {
                                 text: "置顶/取消"
                                 Layout.fillWidth: true
                                 hoverEnabled: true
-                                font.pixelSize: 12
+                                font.pixelSize: DesignTokens.fontSizeBody
                                 font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
+                                palette.buttonText: DesignTokens.textPrimary
                                 background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
+                                    radius: DesignTokens.radiusSm
+                                    border.color: DesignTokens.glassBorder
+                                    border.width: 0.5
+                                    color: Qt.rgba(1, 1, 1, 0.72)
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: DesignTokens.animationFast }
+                                    }
                                 }
                             }
                         }
@@ -229,13 +238,18 @@ Rectangle {
                             text: "删除当前会话"
                             Layout.fillWidth: true
                             hoverEnabled: true
-                            font.pixelSize: 12
+                            font.pixelSize: DesignTokens.fontSizeBody
                             font.weight: Font.DemiBold
-                            palette.buttonText: "#B42318"
+                            palette.buttonText: DesignTokens.danger
                             background: Rectangle {
-                                radius: 11
-                                border.color: Qt.rgba(180 / 255, 35 / 255, 24 / 255, 0.28)
-                                color: Qt.rgba(1, 1, 1, 0.8)
+                                radius: DesignTokens.radiusSm
+                                border.color: Qt.rgba(1, 59/255, 48/255, 0.24)
+                                border.width: 0.5
+                                color: Qt.rgba(1, 1, 1, 0.72)
+
+                                Behavior on color {
+                                    ColorAnimation { duration: DesignTokens.animationFast }
+                                }
                             }
                         }
 
@@ -243,12 +257,14 @@ Rectangle {
                             id: importPathField
                             Layout.fillWidth: true
                             placeholderText: "输入待导入会话文件路径"
-                            color: root.textPrimary
-                            placeholderTextColor: Qt.rgba(96 / 255, 112 / 255, 137 / 255, 0.85)
+                            color: DesignTokens.textPrimary
+                            placeholderTextColor: DesignTokens.textTertiary
+                            font.pixelSize: DesignTokens.fontSizeBody
                             background: Rectangle {
-                                radius: 11
-                                color: Qt.rgba(1, 1, 1, 0.66)
-                                border.color: root.buttonBorder
+                                radius: DesignTokens.radiusSm
+                                color: Qt.rgba(1, 1, 1, 0.62)
+                                border.color: DesignTokens.glassBorder
+                                border.width: 0.5
                             }
                         }
 
@@ -257,91 +273,18 @@ Rectangle {
                             text: "从路径导入会话"
                             Layout.fillWidth: true
                             hoverEnabled: true
-                            font.pixelSize: 12
+                            font.pixelSize: DesignTokens.fontSizeBody
                             font.weight: Font.DemiBold
-                            palette.buttonText: root.buttonTextColor
+                            palette.buttonText: DesignTokens.textPrimary
                             background: Rectangle {
-                                radius: 11
-                                border.color: root.buttonBorder
-                                color: Qt.rgba(1, 1, 1, 0.8)
-                            }
-                        }
+                                radius: DesignTokens.radiusSm
+                                border.color: DesignTokens.glassBorder
+                                border.width: 0.5
+                                color: Qt.rgba(1, 1, 1, 0.72)
 
-                        Text {
-                            text: "系统功能"
-                            color: root.accent
-                            font.pixelSize: 11
-                            font.bold: true
-                            font.capitalization: Font.AllUppercase
-                            font.letterSpacing: 1.1
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Button {
-                                id: settingsButton
-                                text: "设置"
-                                Layout.fillWidth: true
-                                hoverEnabled: true
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
-                                background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
+                                Behavior on color {
+                                    ColorAnimation { duration: DesignTokens.animationFast }
                                 }
-                            }
-
-                            Button {
-                                id: logsButton
-                                text: "日志"
-                                Layout.fillWidth: true
-                                hoverEnabled: true
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
-                                background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
-                                }
-                            }
-
-                            Button {
-                                id: memoryButton
-                                text: "Memory"
-                                Layout.fillWidth: true
-                                hoverEnabled: true
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                palette.buttonText: root.buttonTextColor
-                                background: Rectangle {
-                                    radius: 11
-                                    border.color: root.buttonBorder
-                                    color: Qt.rgba(1, 1, 1, 0.8)
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: 10
-                            color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.08)
-                            border.color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.22)
-                            implicitHeight: 34
-
-                            Text {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                verticalAlignment: Text.AlignVCenter
-                                text: backend ? backend.usageText : "本次消耗：0 Token"
-                                color: root.textSecondary
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
                             }
                         }
                     }
@@ -349,20 +292,21 @@ Rectangle {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.46)
-                    border.color: root.panelBorder
-                    implicitHeight: 82
+                    radius: DesignTokens.radiusMd
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.22)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
+                    implicitHeight: 80
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 10
+                        anchors.margins: DesignTokens.spaceMd
+                        spacing: DesignTokens.spaceSm
 
                         Text {
                             text: "当前会话"
-                            color: root.textSecondary
-                            font.pixelSize: 12
+                            color: DesignTokens.textSecondary
+                            font.pixelSize: DesignTokens.fontSizeFootnote
                         }
 
                         ComboBox {
@@ -370,12 +314,13 @@ Rectangle {
                             Layout.fillWidth: true
                             model: root.sessionsModel
                             textRole: "name"
-                            font.pixelSize: 12
-                            palette.text: root.textPrimary
+                            font.pixelSize: DesignTokens.fontSizeBody
+                            palette.text: DesignTokens.textPrimary
                             background: Rectangle {
-                                radius: 11
-                                color: Qt.rgba(1, 1, 1, 0.66)
-                                border.color: root.buttonBorder
+                                radius: DesignTokens.radiusSm
+                                color: Qt.rgba(1, 1, 1, 0.62)
+                                border.color: DesignTokens.glassBorder
+                                border.width: 0.5
                             }
                         }
                     }
@@ -384,22 +329,23 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.46)
-                    border.color: root.panelBorder
+                    radius: DesignTokens.radiusMd
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.18)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 6
+                        anchors.margins: DesignTokens.spaceMd
+                        spacing: DesignTokens.spaceSm
 
                         Text {
                             text: "会话列表"
-                            color: root.accent
-                            font.pixelSize: 11
-                            font.bold: true
+                            color: DesignTokens.accent
+                            font.pixelSize: DesignTokens.fontSizeCaption
+                            font.weight: Font.DemiBold
                             font.capitalization: Font.AllUppercase
-                            font.letterSpacing: 1.1
+                            font.letterSpacing: 1.4
                         }
 
                         ScrollView {
@@ -409,64 +355,68 @@ Rectangle {
 
                             Column {
                                 width: parent.width
-                                spacing: 6
+                                spacing: DesignTokens.spaceSm
 
                                 Repeater {
                                     model: demoSessions
 
                                     delegate: Rectangle {
                                         width: parent ? parent.width : 0
-                                        height: 56
-                                        radius: 14
-                                        color: (selected ? root.accentSoft : Qt.rgba(1, 1, 1, 0.55))
-                                        border.color: selected ? Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.35) : root.panelBorder
+                                        height: 58
+                                        radius: DesignTokens.radiusSm
+                                        color: selected ? DesignTokens.accentSoft : Qt.rgba(1, 1, 1, 0.48)
+                                        border.color: selected ? DesignTokens.glassBorderFocused : DesignTokens.glassBorder
+                                        border.width: selected ? 1 : 0.5
 
                                         RowLayout {
                                             anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 10
+                                            anchors.margins: DesignTokens.spaceMd
+                                            spacing: DesignTokens.spaceSm
 
                                             Rectangle {
                                                 width: 8
                                                 height: 8
                                                 radius: 4
-                                                color: selected ? root.accent : Qt.rgba(96 / 255, 112 / 255, 137 / 255, 0.5)
+                                                color: selected ? DesignTokens.accent : Qt.rgba(96/255, 112/255, 137/255, 0.5)
                                             }
 
                                             ColumnLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 2
+                                                spacing: DesignTokens.spaceXxs
 
                                                 Text {
+                                                    Layout.fillWidth: true
                                                     text: name ? name : "未命名会话"
-                                                    color: root.textPrimary
-                                                    font.pixelSize: 12
-                                                    font.bold: selected
+                                                    color: DesignTokens.textPrimary
+                                                    font.pixelSize: DesignTokens.fontSizeBody
+                                                    font.weight: selected ? Font.DemiBold : Font.Normal
                                                     elide: Text.ElideRight
                                                 }
 
                                                 Text {
+                                                    Layout.fillWidth: true
                                                     text: (statusText ? statusText : "active") + (updatedAt ? " · " + updatedAt : "")
-                                                    color: root.textSecondary
-                                                    font.pixelSize: 10
+                                                    color: DesignTokens.textSecondary
+                                                    font.pixelSize: DesignTokens.fontSizeCaption
                                                     elide: Text.ElideRight
                                                 }
                                             }
 
                                             Rectangle {
                                                 visible: pinned === true
-                                                width: 44
+                                                width: 42
                                                 height: 22
-                                                radius: 11
-                                                color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.12)
-                                                border.color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.28)
+                                                radius: DesignTokens.radiusFull
+                                                color: Qt.rgba(255/255, 149/255, 0, 0.12)
+                                                border.color: Qt.rgba(255/255, 149/255, 0, 0.28)
+                                                border.width: 0.5
 
                                                 Text {
                                                     anchors.centerIn: parent
                                                     text: "置顶"
-                                                    color: root.accent
-                                                    font.pixelSize: 10
-                                                    font.bold: true
+                                                    color: DesignTokens.warning
+                                                    font.pixelSize: DesignTokens.fontSizeCaption
+                                                    font.weight: Font.DemiBold
                                                 }
                                             }
                                         }
@@ -480,63 +430,67 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             visible: backend !== null
-                            spacing: 6
+                            spacing: DesignTokens.spaceSm
                             clip: true
                             model: backend ? backend.sessionsModel : null
 
                             delegate: Rectangle {
                                 width: sessionList.width
-                                height: 56
-                                radius: 14
-                                color: (selected ? root.accentSoft : Qt.rgba(1, 1, 1, 0.55))
-                                border.color: selected ? Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.35) : root.panelBorder
+                                height: 58
+                                radius: DesignTokens.radiusSm
+                                color: selected ? DesignTokens.accentSoft : Qt.rgba(1, 1, 1, 0.48)
+                                border.color: selected ? DesignTokens.glassBorderFocused : DesignTokens.glassBorder
+                                border.width: selected ? 1 : 0.5
 
                                 RowLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 10
-                                    spacing: 10
+                                    anchors.margins: DesignTokens.spaceMd
+                                    spacing: DesignTokens.spaceSm
 
                                     Rectangle {
                                         width: 8
                                         height: 8
                                         radius: 4
-                                        color: selected ? root.accent : Qt.rgba(96 / 255, 112 / 255, 137 / 255, 0.5)
+                                        color: selected ? DesignTokens.accent : Qt.rgba(96/255, 112/255, 137/255, 0.5)
                                     }
 
                                     ColumnLayout {
                                         Layout.fillWidth: true
-                                        spacing: 2
+                                        spacing: DesignTokens.spaceXxs
 
                                         Text {
+                                            Layout.fillWidth: true
                                             text: name ? name : "未命名会话"
-                                            color: root.textPrimary
-                                            font.pixelSize: 12
-                                            font.bold: selected
+                                            color: DesignTokens.textPrimary
+                                            font.pixelSize: DesignTokens.fontSizeBody
+                                            font.weight: selected ? Font.DemiBold : Font.Normal
                                             elide: Text.ElideRight
                                         }
 
                                         Text {
+                                            Layout.fillWidth: true
                                             text: (statusText ? statusText : "active") + (updatedAt ? " · " + updatedAt : "")
-                                            color: root.textSecondary
-                                            font.pixelSize: 10
+                                            color: DesignTokens.textSecondary
+                                            font.pixelSize: DesignTokens.fontSizeCaption
                                             elide: Text.ElideRight
                                         }
                                     }
 
                                     Rectangle {
                                         visible: pinned === true
-                                        width: 44
+                                        width: 42
                                         height: 22
-                                        radius: 11
-                                        color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.12)
-                                        border.color: Qt.rgba(22 / 255, 119 / 255, 255 / 255, 0.28)
+                                        radius: DesignTokens.radiusFull
+                                        color: Qt.rgba(255/255, 149/255, 0, 0.12)
+                                        border.color: Qt.rgba(255/255, 149/255, 0, 0.28)
+                                        border.width: 0.5
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "置顶"
-                                            color: root.accent
-                                            font.pixelSize: 10
-                                            font.bold: true
+                                            color: DesignTokens.warning
+                                            font.pixelSize: DesignTokens.fontSizeCaption
+                                            font.weight: Font.DemiBold
                                         }
                                     }
                                 }
@@ -550,51 +504,70 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 24
-            color: root.panelColor
-            border.color: root.panelBorder
+            radius: DesignTokens.radiusXl
+            color: DesignTokens.glassFillLight
+            border.color: DesignTokens.glassBorder
+            border.width: 0.5
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: parent.width * 0.68
+                height: 0.5
+                color: Qt.rgba(1, 1, 1, 0.36)
+            }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.margins: DesignTokens.spaceLg
+                spacing: DesignTokens.spaceMd
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 78
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.58)
-                    border.color: root.panelBorder
+                    implicitHeight: 74
+                    radius: DesignTokens.radiusMd
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.22)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
+
+                    Rectangle {
+                        anchors {
+                            top: parent.top
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        width: parent.width * 0.64
+                        height: 0.5
+                        color: Qt.rgba(1, 1, 1, 0.38)
+                    }
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 12
+                        anchors.margins: DesignTokens.spaceMd
+                        spacing: DesignTokens.spaceMd
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: DesignTokens.spaceXxs
 
                             Text {
+                                Layout.fillWidth: true
                                 text: backend ? backend.currentSessionName : "消息工作区"
-                                color: root.textPrimary
-                                font.pixelSize: 19
-                                font.bold: true
+                                color: DesignTokens.textPrimary
+                                font.pixelSize: DesignTokens.fontSizeTitle3
+                                font.weight: Font.Bold
                                 elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
 
                             Text {
-                                text: backend ? backend.statusText : "Design Studio 预览模式"
-                                color: root.textSecondary
-                                font.pixelSize: 11
+                                Layout.fillWidth: true
+                                text: backend ? backend.statusText : "iOS Glass Design Studio 预览模式"
+                                color: DesignTokens.textSecondary
+                                font.pixelSize: DesignTokens.fontSizeCaption
                                 elide: Text.ElideRight
-                            }
-
-                            Text {
-                                text: backend ? backend.usageText : "本次消耗：0 Token"
-                                color: root.textSecondary
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
                         }
 
@@ -602,6 +575,22 @@ Rectangle {
                             id: stopButton
                             text: "停止"
                             visible: backend ? backend.generating : false
+                            background: Rectangle {
+                                implicitWidth: 60
+                                implicitHeight: 32
+                                radius: DesignTokens.radiusSm
+                                color: "#FEE2E2"
+                                border.color: Qt.rgba(1, 59/255, 48/255, 0.28)
+                                border.width: 0.5
+                            }
+                            contentItem: Text {
+                                text: stopButton.text
+                                font.pixelSize: DesignTokens.fontSizeBody
+                                color: DesignTokens.danger
+                                font.weight: Font.Medium
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
                         }
                     }
                 }
@@ -609,45 +598,63 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.44)
-                    border.color: root.panelBorder
+                    radius: DesignTokens.radiusMd
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.18)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
 
                     ScrollView {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: DesignTokens.spaceMd
                         visible: !backend
 
                         Column {
                             id: previewChatColumn
                             width: parent.width
-                            spacing: 8
+                            spacing: DesignTokens.spaceSm
 
                             Repeater {
                                 model: demoMessages
 
                                 delegate: Item {
                                     width: parent ? parent.width : 0
-                                    height: previewBubble.implicitHeight + 8
+                                    height: previewBubble.implicitHeight + DesignTokens.spaceSm
 
                                     Rectangle {
                                         id: previewBubble
-                                        width: Math.min(chatList.width * 0.78, Math.max(180, previewText.implicitWidth + 30))
+                                        width: Math.min(Math.max(200, previewText.implicitWidth + 28), parent ? parent.width * 0.76 : 600)
                                         implicitHeight: previewText.implicitHeight + 22
-                                        radius: 14
-                                        color: isUser ? "#0066FF" : Qt.rgba(1, 1, 1, 0.95)
-                                        border.color: isUser ? Qt.rgba(0 / 255, 102 / 255, 255 / 255, 0.6) : root.panelBorder
+                                        radius: 18
+                                        color: isUser
+                                            ? Qt.rgba(210/255, 235/255, 255/255, 0.52)
+                                            : Qt.rgba(235/255, 245/255, 255/255, 0.48)
+                                        border.color: isUser
+                                            ? Qt.rgba(150/255, 210/255, 255/255, 0.45)
+                                            : Qt.rgba(180/255, 215/255, 250/255, 0.32)
+                                        border.width: 0.5
                                         anchors.right: isUser ? parent.right : undefined
                                         anchors.left: isUser ? undefined : parent.left
+
+                                        Rectangle {
+                                            anchors {
+                                                top: parent.top
+                                                horizontalCenter: parent.horizontalCenter
+                                            }
+                                            width: parent.width * 0.72
+                                            height: 0.5
+                                            radius: 0.25
+                                            color: isUser ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(1, 1, 1, 0.52)
+                                        }
 
                                         Text {
                                             id: previewText
                                             anchors.fill: parent
-                                            anchors.margins: 11
+                                            anchors.margins: DesignTokens.spaceMd
                                             text: displayContent ? displayContent : ""
-                                            color: isUser ? "#FFFFFF" : root.textPrimary
+                                            color: isUser ? "#0A3D6E" : "#1D1D1F"
                                             wrapMode: Text.Wrap
-                                            font.pixelSize: 12
+                                            font.pixelSize: DesignTokens.fontSizeCallout
+                                            lineHeight: 1.4
                                         }
                                     }
                                 }
@@ -656,47 +663,66 @@ Rectangle {
                     }
 
                     ListView {
-                            id: chatList
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            visible: backend !== null
-                            spacing: 8
-                            clip: true
-                            model: backend ? backend.messagesModel : null
-                            
-                            add: Transition {
-                                ParallelAnimation {
-                                    NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutQuad }
-                                    NumberAnimation { property: "scale"; from: 0.95; to: 1.0; duration: 250; easing.type: Easing.OutBack }
-                                }
+                        id: chatList
+                        anchors.fill: parent
+                        anchors.margins: DesignTokens.spaceMd
+                        visible: backend !== null
+                        spacing: DesignTokens.spaceSm
+                        clip: true
+                        model: backend ? backend.messagesModel : null
+
+                        add: Transition {
+                            ParallelAnimation {
+                                NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutQuad }
+                                NumberAnimation { property: "scale"; from: 0.95; to: 1.0; duration: 250; easing.type: Easing.OutBack }
                             }
-                            
-                            addDisplaced: Transition {
-                                NumberAnimation { properties: "x,y"; duration: 200; easing.type: Easing.OutCubic }
-                            }
+                        }
+
+                        addDisplaced: Transition {
+                            NumberAnimation { properties: "x,y"; duration: 200; easing.type: Easing.OutCubic }
+                        }
 
                         delegate: Item {
                             width: chatList.width
-                            height: bubble.implicitHeight + 8
+                            height: bubble.implicitHeight + DesignTokens.spaceSm
 
                             Rectangle {
                                 id: bubble
-                                width: Math.min(chatList.width * 0.78, Math.max(180, bubbleText.implicitWidth + 30))
+                                width: Math.min(Math.max(180, bubbleText.implicitWidth + 30), chatList.width * 0.78)
                                 implicitHeight: bubbleText.implicitHeight + 22
-                                radius: 14
-                                color: isUser ? "#0066FF" : Qt.rgba(1, 1, 1, 0.95)
-                                border.color: isUser ? Qt.rgba(0 / 255, 102 / 255, 255 / 255, 0.6) : root.panelBorder
+                                radius: 18
+                                color: isUser
+                                    ? Qt.rgba(210/255, 235/255, 255/255, 0.52)
+                                    : Qt.rgba(235/255, 245/255, 255/255, 0.48)
+                                border.color: isUser
+                                    ? Qt.rgba(150/255, 210/255, 255/255, 0.45)
+                                    : Qt.rgba(180/255, 215/255, 250/255, 0.32)
+                                border.width: 0.5
                                 anchors.right: isUser ? parent.right : undefined
                                 anchors.left: isUser ? undefined : parent.left
 
-                                Text {
+                                Rectangle {
+                                    anchors {
+                                        top: parent.top
+                                        horizontalCenter: parent.horizontalCenter
+                                    }
+                                    width: parent.width * 0.72
+                                    height: 0.5
+                                    radius: 0.25
+                                    color: isUser ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(1, 1, 1, 0.52)
+                                }
+
+                                TextEdit {
                                     id: bubbleText
                                     anchors.fill: parent
-                                    anchors.margins: 11
+                                    anchors.margins: DesignTokens.spaceMd
                                     text: displayContent ? displayContent : ""
-                                    color: isUser ? "#FFFFFF" : root.textPrimary
-                                    wrapMode: Text.Wrap
-                                    font.pixelSize: 12
+                                    color: isUser ? "#0A3D6E" : "#1D1D1F"
+                                    wrapMode: TextEdit.WordWrap
+                                    font.pixelSize: DesignTokens.fontSizeCallout
+                                    readOnly: true
+                                    selectByMouse: true
+                                    persistentSelection: true
                                 }
                             }
                         }
@@ -706,31 +732,46 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 118
-                    radius: 16
-                    color: Qt.rgba(1, 1, 1, 0.64)
-                    border.color: root.panelBorder
+                    radius: DesignTokens.radiusLg
+                    color: Qt.rgba(240/255, 242/255, 248/255, 0.25)
+                    border.color: DesignTokens.glassBorder
+                    border.width: 0.5
+
+                    Rectangle {
+                        anchors {
+                            top: parent.top
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        width: parent.width * 0.78
+                        height: 0.5
+                        color: Qt.rgba(1, 1, 1, 0.42)
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 6
+                        anchors.margins: DesignTokens.spaceMd
+                        spacing: DesignTokens.spaceSm
 
                         TextArea {
                             id: inputField
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             placeholderText: "输入消息..."
+                            placeholderTextColor: DesignTokens.textTertiary
+                            color: DesignTokens.textPrimary
+                            font.pixelSize: DesignTokens.fontSizeCallout
                             wrapMode: TextArea.Wrap
                             background: null
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
+                            spacing: DesignTokens.spaceMd
 
                             Text {
                                 text: "点击发送按钮提交消息"
-                                color: root.textSecondary
-                                font.pixelSize: 11
+                                color: DesignTokens.textSecondary
+                                font.pixelSize: DesignTokens.fontSizeCaption
                             }
 
                             Item {
@@ -741,16 +782,22 @@ Rectangle {
                                 id: sendButton
                                 text: "发送"
                                 enabled: !(backend ? backend.generating : false)
-                            }
-
-                            Button {
-                                id: testApiButton
-                                text: "测试 API"
-                                enabled: !(backend ? backend.generating : false)
-                                onClicked: {
-                                    if (backend) {
-                                        backend.sendMessage("请回复：API连通测试成功。")
+                                background: Rectangle {
+                                    implicitWidth: 72
+                                    implicitHeight: 36
+                                    radius: DesignTokens.radiusLg
+                                    gradient: Gradient {
+                                        GradientStop { position: 0.0; color: sendButton.enabled ? (sendButton.pressed ? "#0056CC" : sendButton.hovered ? "#0070E0" : DesignTokens.accent) : "#C7C7CC" }
+                                        GradientStop { position: 1.0; color: sendButton.enabled ? (sendButton.pressed ? "#0044AA" : sendButton.hovered ? "#005ED4" : "#5856D6") : "#C7C7CC" }
                                     }
+                                }
+                                contentItem: Text {
+                                    text: sendButton.text
+                                    font.pixelSize: DesignTokens.fontSizeCallout
+                                    font.weight: Font.DemiBold
+                                    color: "#FFFFFF"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
                                 }
                             }
                         }

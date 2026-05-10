@@ -3,6 +3,7 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QDir>
+#include <QFile>
 #include <QCoreApplication>
 
 namespace clawpp {
@@ -53,7 +54,7 @@ QJsonObject RunnerManager::executeLocal(const QString& action, const QJsonObject
         QString cwd = params["cwd"].toString(QDir::currentPath());
         
 #ifdef Q_OS_WIN
-        QString fullCmd = QString("powershell.exe -NoProfile -NonInteractive -Command \"%1\"").arg(command);
+        QString fullCmd = QString("cmd /c \"%1\"").arg(command);
 #else
         QString fullCmd = QString("bash -c \"%1\"").arg(command);
 #endif
@@ -126,10 +127,24 @@ QJsonObject RunnerManager::executeSubprocess(const QString& action, const QJsonO
     QString runnerExe = m_subprocessPath;
     if (runnerExe.isEmpty()) {
 #ifdef Q_OS_WIN
-        runnerExe = QCoreApplication::applicationDirPath() + "/clawrunner_internal.exe";
+        runnerExe = QCoreApplication::applicationDirPath() + "/bin/clawrunner_internal.exe";
 #else
-        runnerExe = QCoreApplication::applicationDirPath() + "/clawrunner_internal";
+        runnerExe = QCoreApplication::applicationDirPath() + "/bin/clawrunner_internal";
 #endif
+    } else if (!runnerExe.contains('/') && !runnerExe.contains('\\')) {
+        // Bare filename: resolve relative to application dir, trying bin/ first
+        QString base = QCoreApplication::applicationDirPath();
+#ifdef Q_OS_WIN
+        QString binPath = base + "/bin/" + runnerExe;
+        QString localPath = base + "/" + runnerExe;
+#else
+        QString binPath = base + "/bin/" + runnerExe;
+        QString localPath = base + "/" + runnerExe;
+#endif
+        if (QFile::exists(binPath))
+            runnerExe = binPath;
+        else if (QFile::exists(localPath))
+            runnerExe = localPath;
     }
     
     process.start(runnerExe, QStringList());

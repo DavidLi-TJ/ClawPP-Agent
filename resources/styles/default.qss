@@ -1,13 +1,12 @@
-﻿
 * {
-    font-family: "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    color: #1F2937;
+    font-family: "-apple-system", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #000000;
 }
 
 QMainWindow,
 QWidget#mainWindowRoot {
     background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
-    stop: 0 rgba(246, 248, 252, 0.72), stop: 0.5 rgba(242, 246, 251, 0.66), stop: 1 rgba(237, 242, 248, 0.72));
+        stop: 0 #ECF0F6, stop: 0.5 #F3F5FA, stop: 1 #FAFBFC);
 }
 
 QSplitter#mainSplitter {
@@ -15,17 +14,17 @@ QSplitter#mainSplitter {
 }
 
 QSplitter#mainSplitter::handle {
-    background: rgba(148, 163, 184, 0.12);
+    background: rgba(148, 163, 184, 0.10);
     border-radius: 999px;
 }
 
 QSplitter#mainSplitter::handle:hover {
-    background: rgba(37, 99, 235, 0.18);
+    background: rgba(0, 122, 255, 0.16);
 }
 
 QWidget#sidebarShell {
-    background: rgba(248, 250, 253, 0.64);
-    border-right: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(248, 250, 253, 0.62);
+    border-right: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 QWidget#chatSurfacePanel {
@@ -33,8 +32,8 @@ QWidget#chatSurfacePanel {
 }
 
 QWidget#topBar {
-    background: rgba(255, 255, 255, 0.58);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(255, 255, 255, 0.56);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.10);
 }
 
 QFrame#sidebarHeroCard,
@@ -52,9 +51,9 @@ QWidget#settingsTabWidget,
 QWidget#workspaceStack,
 QWidget#chatViewRoot,
 QWidget#logViewRoot {
-    background: rgba(255, 255, 255, 0.64);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(139, 139, 144, 0.14);
+    border-radius: 22px;
 }
 
 QFrame#contentBody,
@@ -62,18 +61,18 @@ QFrame#chatAreaPanel,
 QWidget#workspaceStack,
 QWidget#chatViewRoot,
 QWidget#logViewRoot {
-    border-radius: 22px;
+    border-radius: 24px;
 }
 
 QFrame#contentHeader {
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(255, 255, 255, 0.58);
 }
 
 QLabel#sidebarAppTitle,
 QLabel#contentTitleLabel {
-    font-size: 18px;
+    font-size: 28px;
     font-weight: 700;
-    color: #0F172A;
+    color: #000000;
 }
 
 QLabel#sidebarAppSubtitle,
@@ -82,73 +81,74 @@ QLabel#contentSubtitleLabel,
 QLabel#sidebarMultiAgentHint,
 QLabel#sidebarBackendLabel,
 QLabel#sidebarVersionLabel {
-    color: #64748B;
+    color: rgba(60, 60, 67, 0.60);
     font-size: 12px;
 }
 
 QLabel#sidebarSectionLabel,
 QLabel#contentSectionLabel {
-    color: #2563EB;
+    color: #007AFF;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
 }
 
 QLabel#sidebarTokenLabel,
 QLabel#connectionStatusLabel {
-    background: rgba(241, 245, 249, 0.88);
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(241, 245, 249, 0.86);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: 999px;
-    padding: 8px 12px;
+    padding: 8px 14px;
     color: #475569;
     font-size: 12px;
     font-weight: 600;
 }
 
 QLabel#connectionStatusLabel[connected="true"] {
-    background: rgba(220, 252, 231, 0.96);
-    border-color: rgba(34, 197, 94, 0.28);
+    background: rgba(220, 252, 231, 0.94);
+    border-color: rgba(52, 199, 89, 0.26);
     color: #166534;
 }
 
 QLabel#connectionStatusLabel[connected="false"] {
-    background: rgba(241, 245, 249, 0.92);
-    border-color: rgba(148, 163, 184, 0.18);
+    background: rgba(241, 245, 249, 0.90);
+    border-color: rgba(148, 163, 184, 0.16);
     color: #64748B;
 }
 
 QPushButton {
-    background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.14);
     border-radius: 14px;
-    padding: 9px 16px;
-    color: #1F2937;
+    padding: 10px 16px;
+    color: #000000;
     font-size: 13px;
     font-weight: 600;
 }
 
 QPushButton:hover {
-    background: rgba(248, 250, 252, 0.92);
-    border-color: rgba(96, 165, 250, 0.28);
+    background: rgba(248, 250, 252, 0.90);
+    border-color: rgba(0, 122, 255, 0.26);
 }
 
 QPushButton:pressed {
-    background: rgba(226, 232, 240, 0.88);
+    background: rgba(226, 232, 240, 0.86);
 }
 
 QPushButton#primaryActionButton,
 QPushButton#chatSendButton {
     background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
-        stop: 0 #2563EB, stop: 1 #1D4ED8);
+        stop: 0 #007AFF, stop: 1 #5856D6);
     color: #FFFFFF;
-    border: 1px solid #1D4ED8;
+    border: none;
+    border-radius: 18px;
 }
 
 QPushButton#chatTestApiButton {
-    background: rgba(14, 165, 233, 0.92);
+    background: rgba(14, 165, 233, 0.90);
     color: #FFFFFF;
-    border: 1px solid rgba(2, 132, 199, 0.95);
+    border: 1px solid rgba(2, 132, 199, 0.92);
     border-radius: 12px;
     font-weight: 700;
 }
@@ -167,31 +167,31 @@ QPushButton#logViewRoot QPushButton {
 QPushButton#primaryActionButton:hover,
 QPushButton#chatSendButton:hover {
     background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
-        stop: 0 #2F6FF5, stop: 1 #1E40AF);
+        stop: 0 #0070E0, stop: 1 #005ED4);
 }
 
 QPushButton#sidebarNavButton {
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 11px 14px;
     text-align: left;
 }
 
 QPushButton#sidebarNavButton:checked {
-    background: rgba(219, 234, 254, 0.96);
-    border-color: rgba(96, 165, 250, 0.42);
-    color: #1D4ED8;
+    background: rgba(219, 234, 254, 0.94);
+    border-color: rgba(0, 122, 255, 0.38);
+    color: #0070E0;
 }
 
 QPushButton#sidebarConfigItem {
-    border-radius: 14px;
-    background: rgba(248, 250, 252, 0.96);
+    border-radius: 16px;
+    background: rgba(248, 250, 252, 0.94);
 }
 
 QPushButton#contentRefreshBtn,
 QPushButton#logRefreshButton,
 QPushButton#logClearButton,
 QPushButton#logAutoRefreshButton {
-    border-radius: 14px;
+    border-radius: 16px;
 }
 
 QPushButton#settingsActionButton,
@@ -199,19 +199,19 @@ QPushButton#sidebarSettingsButton,
 QPushButton#sessionNewButton,
 QPushButton#sessionSecondaryButton,
 QPushButton#chatStopButton {
-    background: rgba(255, 255, 255, 0.76);
+    background: rgba(255, 255, 255, 0.74);
 }
 
 QPushButton#sidebarTabButton {
     text-align: left;
     padding: 11px 14px;
-    border-radius: 12px;
+    border-radius: 14px;
 }
 
 QPushButton#sidebarTabButton:checked {
-    background: rgba(219, 234, 254, 0.9);
-    border-color: rgba(96, 165, 250, 0.40);
-    color: #1D4ED8;
+    background: rgba(219, 234, 254, 0.88);
+    border-color: rgba(0, 122, 255, 0.36);
+    color: #0070E0;
 }
 
 QPushButton#sidebarSettingsButton {
@@ -225,46 +225,118 @@ QPushButton#toolbarIconButton,
 QToolButton#toolbarIconButton {
     background: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
 }
 
 QToolButton:hover,
 QPushButton#toolbarIconButton:hover {
-    background: rgba(229, 231, 235, 0.8);
+    background: rgba(229, 231, 235, 0.78);
 }
 
 QToolButton:pressed,
 QPushButton#toolbarIconButton:pressed {
-    background: rgba(209, 213, 219, 0.9);
+    background: rgba(209, 213, 219, 0.88);
 }
 
 QToolButton#windowControlButton,
 QToolButton#windowCloseButton {
     background: transparent;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 15px;
 }
 
 QToolButton#windowCloseButton:hover {
-    background: rgba(248, 113, 113, 0.16);
+    background: rgba(255, 59, 48, 0.14);
     color: #B91C1C;
 }
 
 QComboBox {
-    background: rgba(255, 255, 255, 0.90);
-    border: 1px solid rgba(134, 151, 176, 0.20);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(134, 151, 176, 0.18);
+    border-radius: 14px;
     padding: 6px 12px;
     min-height: 22px;
 }
 
 QComboBox:hover {
-    border-color: rgba(96, 165, 250, 0.35);
+    border-color: rgba(0, 122, 255, 0.32);
 }
 
 QComboBox::drop-down {
     border: none;
     width: 22px;
+    border-top-right-radius: 14px;
+    border-bottom-right-radius: 14px;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid rgba(134, 151, 176, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    selection-background-color: rgba(219, 234, 254, 0.93);
+    selection-color: #0070E0;
+    outline: none;
+    padding: 4px;
+}
+
+QComboBox QAbstractItemView::item {
+    border-radius: 10px;
+    padding: 6px 10px;
+    min-height: 28px;
+}
+
+QMenu {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(160, 195, 240, 0.22);
+    border-radius: 14px;
+    padding: 6px;
+}
+
+QMenu::item {
+    border-radius: 10px;
+    padding: 8px 28px 8px 14px;
+    margin: 2px 4px;
+}
+
+QMenu::item:selected {
+    background: rgba(0, 122, 255, 0.10);
+    color: #0070E0;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: rgba(148, 163, 184, 0.16);
+    margin: 4px 10px;
+}
+
+QLineEdit, QTextEdit, QPlainTextEdit {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 14px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.78);
+    selection-background-color: rgba(0, 122, 255, 0.20);
+    selection-color: #111827;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border-color: rgba(0, 122, 255, 0.38);
+}
+
+QDialog {
+    background: #F4F7FC;
+    border-radius: 14px;
+}
+
+QSpinBox, QDoubleSpinBox {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 14px;
+    padding: 6px 10px;
+    min-height: 22px;
+}
+
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: rgba(0, 122, 255, 0.38);
 }
 
 QPlainTextEdit#chatInputEdit {
@@ -272,49 +344,35 @@ QPlainTextEdit#chatInputEdit {
     border: none;
     padding: 14px 12px 12px 12px;
     font-size: 14px;
-    color: #0F172A;
-    caret-color: #0F172A;
-    selection-background-color: rgba(96, 165, 250, 0.28);
+    color: #000000;
+    caret-color: #000000;
+    selection-background-color: rgba(0, 122, 255, 0.24);
     selection-color: #111827;
-}
-
-QLineEdit#chatFallbackInput {
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid rgba(96, 165, 250, 0.35);
-    border-radius: 10px;
-    padding: 8px 10px;
-    color: #0F172A;
 }
 
 QWidget#chatInputContainer {
     margin-top: 8px;
-    background: rgba(255, 255, 255, 0.70);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 22px;
-}
-
-QWidget#chatQuickCommandButton {
-    background: rgba(241, 245, 249, 0.82);
-    border: 1px solid rgba(134, 151, 176, 0.16);
-    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 24px;
 }
 
 QLabel#chatHintLabel {
-    color: #64748B;
+    color: rgba(60, 60, 67, 0.60);
     font-size: 12px;
 }
 
 QFrame#assistantMessageBubble {
-    background: rgba(255, 255, 255, 0.86);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 22px;
     margin: 6px 12px;
 }
 
 QFrame#userMessageBubble {
-    background: rgba(224, 248, 228, 0.92);
-    border: 1px solid rgba(74, 222, 128, 0.18);
-    border-radius: 20px;
+    background: rgba(0, 122, 255, 0.92);
+    border: 1px solid rgba(0, 102, 204, 0.16);
+    border-radius: 22px;
     margin: 6px 12px;
 }
 
@@ -327,21 +385,24 @@ QLabel#messageAvatarLabel {
     font-size: 12px;
     font-weight: 700;
     color: #FFFFFF;
-    background: rgba(59, 130, 246, 0.96);
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #007AFF, stop: 1 #5856D6);
 }
 
 QLabel#messageAvatarLabel[role="user"] {
-    background: rgba(34, 197, 94, 0.96);
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #34C759, stop: 1 #30D158);
 }
 
 QLabel#messageAvatarLabel[role="assistant"] {
-    background: rgba(59, 130, 246, 0.96);
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #007AFF, stop: 1 #5856D6);
 }
 
 QTextBrowser#messageContentView {
     background: transparent;
     border: none;
-    color: #111827;
+    color: #1D1D1F;
     font-size: 14px;
 }
 
@@ -356,7 +417,7 @@ QLabel#loadingIndicatorText {
 }
 
 QLabel#loadingIndicatorSpinner {
-    color: #2563EB;
+    color: #007AFF;
     font-size: 16px;
     font-weight: 700;
 }
@@ -381,28 +442,17 @@ QWidget#chatMessageContainer {
 }
 
 QWidget#chatInputContainer {
-    background: rgba(255, 255, 255, 0.70);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 22px;
-}
-
-QWidget#chatQuickCommandButton {
-    background: rgba(241, 245, 249, 0.82);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 999px;
-}
-
-QLabel#chatHintLabel {
-    color: #64748B;
-    font-size: 12px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 24px;
 }
 
 QTableWidget#logTable {
     background: transparent;
     border: none;
-    gridline-color: rgba(148, 163, 184, 0.16);
-    selection-background-color: rgba(219, 234, 254, 0.88);
-    selection-color: #1D4ED8;
+    gridline-color: rgba(148, 163, 184, 0.14);
+    selection-background-color: rgba(219, 234, 254, 0.86);
+    selection-color: #0070E0;
 }
 
 QTableWidget#logTable::item {
@@ -410,9 +460,9 @@ QTableWidget#logTable::item {
 }
 
 QHeaderView::section {
-    background: rgba(248, 250, 252, 0.96);
+    background: rgba(248, 250, 252, 0.94);
     border: none;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
     padding: 10px 12px;
     font-weight: 700;
     color: #334155;
@@ -426,18 +476,17 @@ QWidget#logViewRoot QPushButton {
 
 QWidget#logViewRoot QLineEdit,
 QWidget#logViewRoot QComboBox {
-    background: rgba(255, 255, 255, 0.76);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 14px;
     padding: 6px 12px;
 }
 
 QWidget#logViewRoot QPushButton {
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.70);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 14px;
 }
-
 
 QListWidget#sessionList {
     background: transparent;
@@ -448,22 +497,22 @@ QListWidget#sessionList {
 QListWidget#sessionList::item {
     margin: 3px 4px;
     padding: 10px 12px;
-    border-radius: 12px;
-    color: #1F2937;
+    border-radius: 14px;
+    color: #000000;
 }
 
 QListWidget#sessionList::item:hover {
-    background: rgba(229, 231, 235, 0.70);
+    background: rgba(229, 231, 235, 0.68);
 }
 
 QListWidget#sessionList::item:selected {
-    background: rgba(219, 234, 254, 0.95);
-    color: #1D4ED8;
+    background: rgba(219, 234, 254, 0.93);
+    color: #007AFF;
     font-weight: 700;
 }
 
 QListWidget#sessionList::item:selected:hover {
-    background: rgba(191, 219, 254, 0.98);
+    background: rgba(191, 219, 254, 0.96);
 }
 
 QScrollArea {
@@ -482,18 +531,18 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background: rgba(148, 163, 184, 0.75);
+    background: rgba(148, 163, 184, 0.72);
     min-height: 30px;
     border-radius: 5px;
     margin: 2px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: rgba(100, 116, 139, 0.90);
+    background: rgba(100, 116, 139, 0.88);
 }
 
 QScrollBar::handle:vertical:pressed {
-    background: rgba(71, 85, 105, 0.95);
+    background: rgba(71, 85, 105, 0.93);
 }
 
 QScrollBar::sub-line:vertical,
@@ -518,7 +567,7 @@ QScrollBar:horizontal {
 }
 
 QScrollBar::handle:horizontal {
-    background: rgba(148, 163, 184, 0.75);
+    background: rgba(148, 163, 184, 0.72);
     min-width: 30px;
     border-radius: 5px;
     margin: 2px;
@@ -539,16 +588,16 @@ QTabWidget::pane {
 }
 
 QTabBar::tab {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid rgba(134, 151, 176, 0.18);
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(134, 151, 176, 0.16);
     border-bottom: none;
     padding: 8px 14px;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
     margin-right: 4px;
 }
 
 QTabBar::tab:selected {
-    background: rgba(219, 234, 254, 0.95);
-    color: #1D4ED8;
+    background: rgba(219, 234, 254, 0.93);
+    color: #0070E0;
 }

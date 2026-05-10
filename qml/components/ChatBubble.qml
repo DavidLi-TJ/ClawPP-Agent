@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "../"
 
 Item {
     id: root
@@ -11,85 +12,135 @@ Item {
     readonly property bool isUser: sender === "user"
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    implicitHeight: bubble.implicitHeight + 10
-    
+    implicitHeight: bubble.implicitHeight + 16
+
+    opacity: 0
+    y: 8
+
     Component.onCompleted: {
         entryAnim.start()
     }
-    
+
     ParallelAnimation {
         id: entryAnim
-        NumberAnimation { target: root; property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "scale"; from: 0.95; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+        NumberAnimation { target: root; property: "opacity"; from: 0.0; to: 1.0; duration: 280; easing.type: Easing.OutCubic }
+        NumberAnimation { target: root; property: "y"; from: 8; to: 0; duration: 280; easing.type: Easing.OutCubic }
     }
 
     RowLayout {
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         layoutDirection: root.isUser ? Qt.RightToLeft : Qt.LeftToRight
-        spacing: 10
+        spacing: DesignTokens.spaceMd
 
         Rectangle {
             width: 36
             height: 36
-            radius: 18
-            color: root.isUser ? "#22C55E" : "#3B82F6"
+            radius: DesignTokens.radiusLg
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: root.isUser ? "#5AC8FA" : "#007AFF" }
+                GradientStop { position: 1.0; color: root.isUser ? "#34AADC" : "#5856D6" }
+            }
 
             Text {
                 anchors.centerIn: parent
-                text: root.isUser ? "我" : "AI"
-                color: "white"
-                font.pixelSize: 12
-                font.bold: true
+                text: root.isUser ? "U" : "AI"
+                color: "#FFFFFF"
+                font.pixelSize: DesignTokens.fontSizeFootnote
+                font.weight: Font.Bold
             }
         }
 
-        Rectangle {
-            id: bubble
+        Item {
             width: root.isUser
                 ? Math.min(root.width * 0.46, 480)
                 : Math.min(root.width * 0.62, 620)
-            radius: root.isUser ? 18 : 12
-            color: root.isUser ? "#E6F4EA" : "#FFFFFF"
-            border.color: root.isUser ? "transparent" : "#E2E8F0"
-            border.width: root.isUser ? 0 : 1
-            implicitHeight: contentCol.implicitHeight + 24
-            
-            // 简单添加一下阴影感(这里用一种假的内发光或边框模拟，由于不能直接依赖QtGraphicalEffects)
-            // Neumorphism 需要特定的光影，我们用简单的投影颜色近似
+            implicitHeight: bubble.implicitHeight
 
-            ColumnLayout {
-                id: contentCol
+            Rectangle {
+                id: bubble
                 width: parent.width
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 14
-                anchors.rightMargin: 14
-                spacing: 8
+                radius: 18
+                color: root.isUser
+                    ? Qt.rgba(210/255, 235/255, 255/255, 0.52)
+                    : Qt.rgba(235/255, 245/255, 255/255, 0.48)
+                border.color: root.isUser
+                    ? Qt.rgba(150/255, 210/255, 255/255, 0.45)
+                    : Qt.rgba(180/255, 215/255, 250/255, 0.32)
+                border.width: 0.5
+                implicitHeight: contentCol.implicitHeight + 24
 
-                // 未来预留给AI工具调用的折叠面板部分
                 Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 6
-                    color: "#F1F5F9"
-                    visible: !root.isUser && root.toolCallsStr.length > 0
-                    
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        Text { text: "▶ AI 思考 / 工具调用详情"; font.pixelSize: 12; color: "#64748B" }
+                    anchors {
+                        top: parent.top
+                        horizontalCenter: parent.horizontalCenter
                     }
+                    width: parent.width * 0.72
+                    height: 0.5
+                    radius: 0.25
+                    color: root.isUser ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(1, 1, 1, 0.52)
                 }
 
-                Text {
-                    id: textItem
-                    Layout.fillWidth: true
-                    text: root.content
-                    color: "#334155"
-                    font.pixelSize: 14
-                    lineHeight: 1.4
-                    wrapMode: Text.WordWrap
+                Rectangle {
+                    anchors {
+                        left: parent.left
+                        leftMargin: 1
+                        top: parent.top
+                        topMargin: 1
+                        right: parent.right
+                        rightMargin: 1
+                        bottom: parent.bottom
+                        bottomMargin: 1
+                    }
+                    radius: 17
+                    color: "transparent"
+                    border.color: Qt.rgba(1, 1, 1, 0.30)
+                    border.width: 0.5
+                }
+
+                ColumnLayout {
+                    id: contentCol
+                    width: parent.width
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: DesignTokens.spaceLg
+                    anchors.rightMargin: DesignTokens.spaceLg
+                    spacing: DesignTokens.spaceSm
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 30
+                        radius: DesignTokens.radiusSm
+                        color: Qt.rgba(255, 255, 255, 0.20)
+                        border.color: Qt.rgba(255, 255, 255, 0.25)
+                        border.width: 0.5
+                        visible: !root.isUser && root.toolCallsStr.length > 0
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            Text {
+                                text: root.toolCallsStr ? "⚙ " + root.toolCallsStr : "⚙ 工具调用"
+                                font.pixelSize: DesignTokens.fontSizeCaption
+                                color: DesignTokens.textSecondary
+                            }
+                        }
+                    }
+
+                    TextEdit {
+                        id: textItem
+                        Layout.fillWidth: true
+                        text: root.content
+                        readOnly: true
+                        selectByMouse: true
+                        color: root.isUser ? "#0A3D6E" : "#1D1D1F"
+                        font.pixelSize: DesignTokens.fontSizeCallout
+                        wrapMode: TextEdit.WordWrap
+                        textFormat: TextEdit.MarkdownText
+                        persistentSelection: true
+                    }
                 }
             }
         }

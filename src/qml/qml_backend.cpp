@@ -294,6 +294,7 @@ QmlBackend::QmlBackend(QObject* parent)
     QDir().mkpath(QDir(m_workspaceRoot).filePath(QStringLiteral("templates")));
     QDir().mkpath(QDir(m_workspaceRoot).filePath(QStringLiteral("memory")));
     QDir().mkpath(QDir(m_workspaceRoot).filePath(QStringLiteral("skills")));
+    QDir::setCurrent(m_workspaceRoot);
 
     const QStringList bootstrapDocs = {QStringLiteral("SOUL.md"), QStringLiteral("AGENTS.md"), QStringLiteral("USER.md"), QStringLiteral("TOOLS.md"), QStringLiteral("IDENTITY.md"), QStringLiteral("HEARTBEAT.md")};
     for (const QString& name : bootstrapDocs) {
@@ -556,7 +557,12 @@ void QmlBackend::setupConnections() {
                     QString fallback = QStringLiteral("（模型返回空响应）");
                     const MessageList snapshot = m_messagesModel->messages();
                     for (auto it = snapshot.crbegin(); it != snapshot.crend(); ++it) {
-                        if (it->role != MessageRole::Tool) {
+                        const bool isTool = (it->role == MessageRole::Tool);
+                        const bool isToolFailureSystem =
+                            (it->role == MessageRole::System
+                             && it->content.contains(QStringLiteral("工具"))
+                             && it->content.contains(QStringLiteral("失败")));
+                        if (!isTool && !isToolFailureSystem) {
                             continue;
                         }
                         const QString toolText = it->content.simplified();
@@ -567,7 +573,7 @@ void QmlBackend::setupConnections() {
                         if (snippet.size() > 160) {
                             snippet = snippet.left(160) + QStringLiteral("...");
                         }
-                        fallback = QStringLiteral("模型未给出最终回答，最近工具结果：%1").arg(snippet);
+                        fallback = QStringLiteral("模型未给出最终回答，最近工具状态：%1").arg(snippet);
                         break;
                     }
                     m_messagesModel->updateMessage(m_streamingAssistantRow, fallback);
@@ -1103,6 +1109,9 @@ QVariantMap QmlBackend::getSettings() const {
     settings.insert(QStringLiteral("messageChannel"), config.getExternalValue(QStringLiteral("message_channel")));
     settings.insert(QStringLiteral("chatFontSize"), config.getExternalValue(QStringLiteral("chat_font_size")).toInt());
     settings.insert(QStringLiteral("chatLineHeight"), config.getExternalValue(QStringLiteral("chat_line_height")).toDouble());
+    settings.insert(QStringLiteral("panelOpacity"), config.getExternalValue(QStringLiteral("panel_opacity")).toDouble());
+    settings.insert(QStringLiteral("backgroundBlurRadius"), config.getExternalValue(QStringLiteral("background_blur_radius")).toInt());
+    settings.insert(QStringLiteral("backgroundImagePath"), config.getExternalValue(QStringLiteral("background_image_path")));
     return settings;
 }
 
@@ -1511,6 +1520,17 @@ bool QmlBackend::applySettings(const QVariantMap& settings) {
     if (settings.contains(QStringLiteral("chatLineHeight"))) {
         const double lineHeight = qBound(1.15, settings.value(QStringLiteral("chatLineHeight")).toDouble(), 2.0);
         config.setExternalValue(QStringLiteral("chat_line_height"), QString::number(lineHeight, 'f', 2));
+    }
+    if (settings.contains(QStringLiteral("panelOpacity"))) {
+        const double panelOpacity = qBound(0.35, settings.value(QStringLiteral("panelOpacity")).toDouble(), 0.95);
+        config.setExternalValue(QStringLiteral("panel_opacity"), QString::number(panelOpacity, 'f', 2));
+    }
+    if (settings.contains(QStringLiteral("backgroundBlurRadius"))) {
+        const int blurRadius = qBound(0, settings.value(QStringLiteral("backgroundBlurRadius")).toInt(), 36);
+        config.setExternalValue(QStringLiteral("background_blur_radius"), QString::number(blurRadius));
+    }
+    if (settings.contains(QStringLiteral("backgroundImagePath"))) {
+        config.setExternalValue(QStringLiteral("background_image_path"), settings.value(QStringLiteral("backgroundImagePath")).toString());
     }
 
     config.save();

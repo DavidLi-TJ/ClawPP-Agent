@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../"
 import "./"
 
 GlassCard {
@@ -8,11 +9,11 @@ GlassCard {
 
     property var backend: null
     property var sessionsModel: null
-    property color cardColor: Qt.rgba(1, 1, 1, 0.64)
-    property color borderColor: Qt.rgba(0.58, 0.64, 0.72, 0.18)
-    property color textPrimary: "#0F172A"
-    property color textSecondary: "#64748B"
-    property color accent: "#2563EB"
+    property color cardColor: DesignTokens.glassFillLight
+    property color borderColor: DesignTokens.glassBorder
+    property color textPrimary: DesignTokens.textPrimary
+    property color textSecondary: DesignTokens.textSecondary
+    property color accent: DesignTokens.accent
 
     fillColor: root.cardColor
     borderColor: root.borderColor
@@ -25,48 +26,59 @@ GlassCard {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
-        spacing: 14
+        anchors.margins: DesignTokens.spaceXxl
+        spacing: DesignTokens.spaceLg
 
         ColumnLayout {
-            spacing: 6
+            spacing: DesignTokens.spaceXxs
 
             Text {
                 text: "Claw++"
                 color: root.textPrimary
-                font.pixelSize: 26
-                font.bold: true
+                font.pixelSize: DesignTokens.fontSizeTitle1
+                font.weight: Font.Bold
             }
 
             Text {
-                text: "QML 控制面板"
+                text: "iOS 风格玻璃质感工作区"
                 color: root.textSecondary
-                font.pixelSize: 13
+                font.pixelSize: DesignTokens.fontSizeBody
             }
         }
 
         Rectangle {
             Layout.fillWidth: true
-            radius: 12
-            color: Qt.rgba(255, 255, 255, 0.62)
-            border.width: 0
+            radius: DesignTokens.radiusMd
+            color: Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.22)
+            border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.18)
+            border.width: 0.5
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: parent.width * 0.68
+                height: 0.5
+                color: Qt.rgba(1, 1, 1, 0.38)
+            }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 6
+                anchors.margins: DesignTokens.spaceLg
+                spacing: DesignTokens.spaceXs
 
                 Text {
                     text: "已连接到 Core"
                     color: root.textPrimary
-                    font.pixelSize: 14
-                    font.bold: true
+                    font.pixelSize: DesignTokens.fontSizeCallout
+                    font.weight: Font.DemiBold
                 }
 
                 Text {
-                    text: "当前使用亚克力与极简卡片风格进行排版。"
+                    text: "当前使用 iOS 风格设计令牌系统，所有组件已统一排版。"
                     color: root.textSecondary
-                    font.pixelSize: 12
+                    font.pixelSize: DesignTokens.fontSizeFootnote
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -75,15 +87,15 @@ GlassCard {
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: DesignTokens.spaceSm
 
             Text {
                 text: "工作区"
                 color: root.accent
-                font.pixelSize: 11
-                font.bold: true
+                font.pixelSize: DesignTokens.fontSizeCaption
+                font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
-                letterSpacing: 1.2
+                letterSpacing: 1.6
             }
 
             SidebarItem { Layout.fillWidth: true; text: "消息"; selected: true }
@@ -92,28 +104,27 @@ GlassCard {
 
         Rectangle {
             Layout.fillWidth: true
-            radius: 12
-            color: Qt.rgba(255, 255, 255, 0.48)
-            border.color: root.borderColor
-            border.width: 1
+            radius: DesignTokens.radiusMd
+            color: Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.18)
+            border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.15)
+            border.width: 0.5
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+                anchors.margins: DesignTokens.spaceLg
+                spacing: DesignTokens.spaceMd
 
                 Text {
                     text: "系统状态"
-                    color: root.accent
-                    font.pixelSize: 13
-                    font.bold: true
+                    color: root.textPrimary
+                    font.pixelSize: DesignTokens.fontSizeCallout
+                    font.weight: Font.DemiBold
                 }
 
                 Text {
                     text: root.backend ? root.backend.statusText : "就绪"
-                    color: root.textPrimary
-                    font.pixelSize: 12
-                    font.bold: true
+                    color: root.textSecondary
+                    font.pixelSize: DesignTokens.fontSizeBody
                     Layout.fillWidth: true
                 }
 
@@ -122,12 +133,27 @@ GlassCard {
                     text: "设置 / System Settings"
                     Layout.fillWidth: true
                     background: Rectangle {
-                        implicitHeight: 36
-                        color: pnlSettingsBtn.down ? "#E5E7EB" : pnlSettingsBtn.hovered ? "#F3F4F6" : "transparent"
-                        radius: 8
+                        implicitHeight: 38
+                        radius: DesignTokens.radiusSm
+                        color: pnlSettingsBtn.pressed
+                            ? Qt.rgba(0, 0, 0, 0.06)
+                            : pnlSettingsBtn.hovered
+                                ? Qt.rgba(0, 0, 0, 0.03)
+                                : "transparent"
                         border.color: root.borderColor
+                        border.width: 0.5
+
+                        Behavior on color {
+                            ColorAnimation { duration: DesignTokens.animationFast }
+                        }
                     }
-                    contentItem: Text { text: pnlSettingsBtn.text; font.pixelSize: 13; color: root.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text {
+                        text: pnlSettingsBtn.text
+                        font.pixelSize: DesignTokens.fontSizeBody
+                        color: root.textPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
         }
@@ -143,22 +169,23 @@ GlassCard {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 18
-            color: Qt.rgba(255, 255, 255, 0.40)
-            border.color: root.borderColor
+            radius: DesignTokens.radiusLg
+            color: Qt.rgba(220 / 255, 235 / 255, 255 / 255, 0.14)
+            border.color: Qt.rgba(160 / 255, 195 / 255, 240 / 255, 0.12)
+            border.width: 0.5
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 8
+                anchors.margins: DesignTokens.spaceLg
+                spacing: DesignTokens.spaceSm
 
                 Text {
                     text: "会话列表"
                     color: root.accent
-                    font.pixelSize: 11
-                    font.bold: true
+                    font.pixelSize: DesignTokens.fontSizeCaption
+                    font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
-                    letterSpacing: 1.2
+                    letterSpacing: 1.6
                 }
 
                 ListView {
@@ -166,8 +193,19 @@ GlassCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    spacing: 8
+                    spacing: DesignTokens.spaceSm
                     model: root.sessionsModel ? root.sessionsModel : demoSessions
+
+                    add: Transition {
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 250; easing.type: Easing.OutCubic }
+                            NumberAnimation { property: "y"; from: 12; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                        }
+                    }
+
+                    addDisplaced: Transition {
+                        NumberAnimation { properties: "x,y"; duration: 200; easing.type: Easing.OutCubic }
+                    }
 
                     delegate: SessionRow {
                         width: ListView.view.width
@@ -175,6 +213,7 @@ GlassCard {
                         statusText: model.statusText
                         selected: model.selected
                         pinned: model.pinned
+                        updatedAt: typeof model.updatedAt !== "undefined" ? model.updatedAt : ""
 
                         onClicked: {
                             var sessionId = model.id ? model.id : model.sessionId
