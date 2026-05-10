@@ -99,6 +99,16 @@ Thumbs.db
 .cproject
 .pydevproject
 
+# Dev plan/report files (not for distribution)
+PLAN*.md
+*_REPORT*.md
+*_SUMMARY*.md
+*_CHECKLIST*.md
+*_SETUP*.md
+*_QUICKSTART*.md
+PROJECT_README.md
+claude_code_agent_plan.md
+
 # Agent configurations
 agents/
 
