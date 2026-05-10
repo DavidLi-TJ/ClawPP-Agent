@@ -336,7 +336,9 @@ LOG_ERROR("错误信息");
     <img src="https://img.shields.io/github/stars/DavidLi-TJ/ClawPP-Agent?style=for-the-badge&logo=starship&color=orange&logoColor=white&labelColor=1A1B26" alt="stars"/>
   </a>
   <br/><br/>
-  <img src="https://starchart.cc/DavidLi-TJ/ClawPP-Agent.svg?variant=adaptive" alt="Star History"/>
+  <a href="https://star-history.com/#DavidLi-TJ/ClawPP-Agent&Date">
+    <img src="https://api.star-history.com/svg?repos=DavidLi-TJ/ClawPP-Agent&type=Date" alt="Star History Chart"/>
+  </a>
 </div>
 
 ***
