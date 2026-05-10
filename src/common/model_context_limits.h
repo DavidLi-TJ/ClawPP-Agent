@@ -43,17 +43,33 @@ inline int inferModelContextLimit(const ProviderConfig& config) {
         return explicitHint;
     }
 
+    if (model.contains(QStringLiteral("claude-opus-4-7"))) return 1000000;
     if (model.contains(QStringLiteral("claude"))) return 200000;
+
+    if (model.contains(QStringLiteral("gemini-3.1"))) return 1000000;
+    if (model.contains(QStringLiteral("gemini-3"))) return 1000000;
     if (model.contains(QStringLiteral("gemini-2.5"))) return 1000000;
     if (model.contains(QStringLiteral("gemini-1.5-pro"))) return 1000000;
     if (model.contains(QStringLiteral("gemini-1.5-flash"))) return 1000000;
     if (model.contains(QStringLiteral("gemini"))) return 128000;
-    if (model.contains(QStringLiteral("gpt-5")) || model.contains(QStringLiteral("codex"))) return 256000;
+
+    // GPT-5.x — check specific variants first
+    if (model.contains(QStringLiteral("gpt-5.4-mini")) || model.contains(QStringLiteral("gpt-5.4-nano"))) return 400000;
+    if (model.contains(QStringLiteral("gpt-5.4"))) return 1050000;
+    if (model.contains(QStringLiteral("gpt-5.5"))) return 1050000;
+    if (model.contains(QStringLiteral("gpt-5.3")) || model.contains(QStringLiteral("gpt-5.2"))
+        || model.contains(QStringLiteral("gpt-5.1")) || model.contains(QStringLiteral("gpt-5"))) return 400000;
+    if (model.contains(QStringLiteral("codex"))) return 256000;
+
+    if (model.contains(QStringLiteral("o4-mini"))) return 200000;
     if (model.contains(QStringLiteral("gpt-4o")) || model.contains(QStringLiteral("gpt-4.1"))
         || model.contains(QStringLiteral("o1")) || model.contains(QStringLiteral("o3"))
         || model.contains(QStringLiteral("o4"))) {
         return 128000;
     }
+    if (model.contains(QStringLiteral("glm-5.1"))) return 200000;
+    if (model.contains(QStringLiteral("glm-5"))) return 200000;
+    if (model.contains(QStringLiteral("glm-4.7"))) return 205000;
     if (model.contains(QStringLiteral("glm-4.5-air"))) return 256000;
     if (model.contains(QStringLiteral("glm-4.5"))) return 128000;
     if (model.contains(QStringLiteral("glm-4"))) return 128000;

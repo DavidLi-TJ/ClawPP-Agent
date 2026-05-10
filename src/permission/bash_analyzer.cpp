@@ -60,8 +60,9 @@ BashAnalyzer::BashAnalyzer() {
     };
     
     // 命令注入模式（正则）
+    // 仅检测危险的命令替换/注入模式，不误报普通 &（后台/链式）和 ;（顺序执行）
     m_injectionPattern = QRegularExpression(
-        R"([\$`]\(.*\)|[;&|].*|<\(.*\)|>\(.*\))",
+        R"([\$`]\(.*\)|\|.*\|.*|<\(.*\)|>\(.*\)|\b(eval|exec|source)\s+\$)",
         QRegularExpression::CaseInsensitiveOption
     );
     
@@ -170,6 +171,9 @@ void BashAnalyzer::checkCommandInjection(const QString& command, QVector<SafetyI
 
 void BashAnalyzer::checkSensitivePaths(const QString& command, QVector<SafetyIssue>& issues) const {
     for (const QString& path : m_sensitivePaths) {
+        if (path == "/" && command.contains(QRegularExpression(QStringLiteral(R"([A-Za-z]:/)")))) {
+            continue;
+        }
         // 使用词边界匹配，避免误报（如 /etc/config 不触发 /etc）
         QRegularExpression pathPattern(QString(R"(\b%1\b)").arg(QRegularExpression::escape(path)));
         if (command.contains(pathPattern)) {

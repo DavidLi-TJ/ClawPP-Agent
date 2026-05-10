@@ -24,7 +24,7 @@ constexpr const char* USER_CONFIG_DIR = ".clawpp";   ///< 用户配置目录
 constexpr const char* USER_CONFIG_FILE = "config.json";  ///< 用户配置文件
 
 constexpr const char* DEFAULT_BASE_URL = "https://api.openai.com/v1";  ///< 默认 API 地址
-constexpr const char* DEFAULT_MODEL = "gpt-4o-mini"; ///< 默认模型
+constexpr const char* DEFAULT_MODEL = "gpt-5.4-mini"; ///< 默认模型
 
 constexpr int DEFAULT_TIMEOUT_MS = 60000;            ///< 默认超时时间（毫秒）
 constexpr int DEFAULT_MAX_TOKENS = 2048;             ///< 默认最大 token 数

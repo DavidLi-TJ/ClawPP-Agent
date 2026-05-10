@@ -1,15 +1,21 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import "../"
 
 Item {
     id: root
 
+    property var backend: null
     property string sender: "assistant"
     property string content: ""
     property string toolCallsStr: ""
+    property real lineHeightValue: 1.45
 
     readonly property bool isUser: sender === "user"
+    readonly property string richContent: backend
+        ? backend.formatMessageText(root.content, !root.isUser, root.lineHeightValue, false)
+        : root.content
 
     width: ListView.view ? ListView.view.width : implicitWidth
     implicitHeight: bubble.implicitHeight + 16
@@ -132,14 +138,17 @@ Item {
                     TextEdit {
                         id: textItem
                         Layout.fillWidth: true
-                        text: root.content
-                        readOnly: true
-                        selectByMouse: true
+                        text: root.richContent
                         color: root.isUser ? "#0A3D6E" : "#1D1D1F"
                         font.pixelSize: DesignTokens.fontSizeCallout
-                        wrapMode: TextEdit.WordWrap
-                        textFormat: TextEdit.MarkdownText
+                        wrapMode: TextEdit.Wrap
+                        textFormat: TextEdit.RichText
+                        readOnly: true
+                        selectByMouse: true
                         persistentSelection: true
+                        activeFocusOnPress: true
+                        selectedTextColor: color
+                        selectionColor: Qt.rgba(0/255, 102/255, 255/255, 0.18)
                     }
                 }
             }

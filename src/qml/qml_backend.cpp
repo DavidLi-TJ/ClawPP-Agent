@@ -23,6 +23,8 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QUuid>
 #include <QFileInfo>
+#include <QTextDocument>
+#include <QRegularExpression>
 #include <utility>
 #include <functional>
 #include <memory>
@@ -238,6 +240,14 @@ QPair<QString, QString> workflowParallelSubtasks(const QString& templateId, cons
         QStringLiteral("memory+reflecting（审校分支）：交叉验证并输出不确定性与结论。\n任务：%1").arg(task));
 }
 
+QString htmlEscapePreservingWhitespace(const QString& input) {
+    QString escaped = input.toHtmlEscaped();
+    escaped.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    escaped.replace(QChar::CarriageReturn, QChar::LineFeed);
+    escaped.replace(QChar::LineFeed, QStringLiteral("<br/>"));
+    return escaped;
+}
+
 }
 
 void QmlBackend::registerTools() {
@@ -248,7 +258,10 @@ void QmlBackend::registerTools() {
     registry.registerTool(new ListDirectoryTool());
     registry.registerTool(new EditFileTool());
     registry.registerTool(new SearchFilesTool());
-    registry.registerTool(new ShellTool());
+    auto* shellTool = new ShellTool();
+    shellTool->setWorkingDirectory(backendWorkspaceRoot());
+    shellTool->setDefaultTimeout(120000);
+    registry.registerTool(shellTool);
     registry.registerTool(new NetworkTool());
     registry.registerTool(new SystemTool());
     registry.registerTool(new SubagentTool());
@@ -2102,6 +2115,33 @@ QString QmlBackend::testExternalConfig(const QString& telegramToken,
     return parts.join(QStringLiteral(" | "));
 }
 
+QString QmlBackend::formatMessageText(const QString& text,
+                                      bool markdown,
+                                      qreal lineHeight,
+                                      bool italic) const {
+    const qreal clampedLineHeight = qBound<qreal>(1.0, lineHeight, 2.4);
+
+    QString bodyHtml;
+    if (markdown) {
+        QTextDocument doc;
+        doc.setMarkdown(text);
+        bodyHtml = doc.toHtml();
+        bodyHtml.remove(QRegularExpression(QStringLiteral(R"(^.*<body[^>]*>)"),
+                                           QRegularExpression::DotMatchesEverythingOption));
+        bodyHtml.remove(QRegularExpression(QStringLiteral(R"(</body>.*$)"),
+                                           QRegularExpression::DotMatchesEverythingOption));
+    } else {
+        bodyHtml = htmlEscapePreservingWhitespace(text);
+    }
+
+    const QString fontStyle = italic ? QStringLiteral("italic") : QStringLiteral("normal");
+    return QStringLiteral(
+        "<div style=\"line-height:%1; font-style:%2; white-space:normal;\">%3</div>")
+        .arg(QString::number(clampedLineHeight, 'f', 2),
+             fontStyle,
+             bodyHtml);
+}
+
 void QmlBackend::createSession(const QString& name) {
     const QString sessionId = m_sessionManager->createSession(name);
     if (!sessionId.isEmpty()) {
@@ -2112,6 +2152,11 @@ void QmlBackend::createSession(const QString& name) {
 
 void QmlBackend::selectSession(const QString& sessionId) {
     if (sessionId.isEmpty()) {
+        return;
+    }
+    if (m_generating && sessionId != m_currentSessionId) {
+        m_statusText = QStringLiteral("当前会话仍在生成，请先等待完成或点击停止后再切换");
+        emit statusTextChanged();
         return;
     }
 

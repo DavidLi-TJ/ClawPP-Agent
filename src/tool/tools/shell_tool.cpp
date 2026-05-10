@@ -11,7 +11,7 @@ ShellTool::ShellTool(QObject* parent)
     : ITool(parent)
     , m_workingDirectory(QDir::currentPath())
     , m_restrictToWorkspace(true)
-    , m_defaultTimeout(30000) {
+    , m_defaultTimeout(120000) {
     m_blockedPatterns = {
         "rm -rf /",
         "rm -rf /*",
@@ -150,10 +150,38 @@ bool ShellTool::isPathAllowed(const QString& path) const {
 
 QString ShellTool::sanitizeCommand(const QString& command) const {
     QString result = command.trimmed();
-    
+
     result.remove(QRegularExpression("\x1b\\[[0-9;]*[a-zA-Z]"));
-    
+
+    // 解码可能的 HTML 实体（部分 LLM 会在工具调用输出中编码 & 等字符）
+    result.replace(QStringLiteral("&amp;"),  QStringLiteral("&"));
+    result.replace(QStringLiteral("&lt;"),   QStringLiteral("<"));
+    result.replace(QStringLiteral("&gt;"),   QStringLiteral(">"));
+    result.replace(QStringLiteral("&quot;"), QStringLiteral("\""));
+    result.replace(QStringLiteral("&#39;"),  QStringLiteral("'"));
+
     return result;
+}
+
+QString ShellTool::adaptCommandForPlatform(const QString& command) const {
+#ifdef Q_OS_WIN
+    QString trimmed = command.trimmed();
+
+    // Detect bare file paths to non-executable documents/images, e.g. "report.pdf"
+    // On Windows cmd.exe, typing a bare filename for a non-executable file fails with
+    // "The system cannot find the file". Wrap with `start ""` to open via shell association.
+    static const QRegularExpression fileOpenRe(
+        R"(^[^\s&|><;()$`]*\.(png|jpg|jpeg|gif|bmp|svg|webp|pdf|html?|txt|md|csv|json|xml|log)\s*$)",
+        QRegularExpression::CaseInsensitiveOption
+    );
+
+    if (fileOpenRe.match(trimmed).hasMatch() &&
+        !trimmed.startsWith("start", Qt::CaseInsensitive) &&
+        !trimmed.startsWith("explorer", Qt::CaseInsensitive)) {
+        return QStringLiteral("start \"\" \"%1\"").arg(trimmed);
+    }
+#endif
+    return command;
 }
 
 ToolResult ShellTool::execute(const QJsonObject& args) {
@@ -167,6 +195,7 @@ ToolResult ShellTool::execute(const QJsonObject& args) {
     }
     
     command = sanitizeCommand(command);
+    command = adaptCommandForPlatform(command);
     
     if (isCommandBlocked(command)) {
         result.success = false;

@@ -9,6 +9,7 @@ GlassCard {
 
     property var backend: null
     property var messagesModel: null
+    property real chatLineHeight: 1.45
     property color cardColor: DesignTokens.glassFillLight
     property color borderColor: DesignTokens.glassBorder
     property color textPrimary: DesignTokens.textPrimary
@@ -85,6 +86,8 @@ GlassCard {
                 sender: model.sender
                 content: model.displayContent
                 toolCallsStr: typeof model.toolCalls !== "undefined" ? model.toolCalls : ""
+                lineHeightValue: root.chatLineHeight
+                backend: root.backend
             }
 
             footer: Item {

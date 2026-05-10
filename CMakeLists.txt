@@ -103,6 +103,12 @@ qt_add_executable(ClawPP WIN32
     app_icon.rc
 )
 
+qt_add_executable(clawrunner_internal
+    src/runner/main.cpp
+)
+
+add_dependencies(ClawPP clawrunner_internal)
+
 # ========== Include Directories ==========
 
 target_include_directories(ClawPP PRIVATE
@@ -122,6 +128,14 @@ target_link_libraries(ClawPP PRIVATE
     Qt6::Widgets
 )
 
+target_link_libraries(clawrunner_internal PRIVATE
+    Qt6::Core
+)
+
+set_target_properties(clawrunner_internal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
 # ========== Compile Definitions ==========
 
 target_compile_definitions(ClawPP PRIVATE
@@ -134,6 +148,10 @@ install(TARGETS ClawPP
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS clawrunner_internal
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/bin
 )
 
 qt_generate_deploy_qml_app_script(

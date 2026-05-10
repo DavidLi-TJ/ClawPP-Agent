@@ -5,8 +5,20 @@
 #include <QDir>
 #include <QFile>
 #include <QCoreApplication>
+#include <QRegularExpression>
 
 namespace clawpp {
+
+namespace {
+
+QString adaptShellCommandForWindows(const QString& command) {
+    QString adapted = command;
+    adapted.replace(QRegularExpression(QStringLiteral("(?<![&])&&(?![&])")),
+                    QStringLiteral("& if errorlevel 1 exit /b %errorlevel% & "));
+    return adapted;
+}
+
+}
 
 RunnerManager& RunnerManager::instance() {
     static RunnerManager instance;
@@ -54,7 +66,8 @@ QJsonObject RunnerManager::executeLocal(const QString& action, const QJsonObject
         QString cwd = params["cwd"].toString(QDir::currentPath());
         
 #ifdef Q_OS_WIN
-        QString fullCmd = QString("cmd /c \"%1\"").arg(command);
+        const QString adapted = adaptShellCommandForWindows(command);
+        QString fullCmd = QString("cmd /c \"%1\"").arg(adapted);
 #else
         QString fullCmd = QString("bash -c \"%1\"").arg(command);
 #endif

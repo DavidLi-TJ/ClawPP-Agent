@@ -120,7 +120,7 @@ struct ProviderConfig {
     QString type = "openai";      ///< 提供者类型
     QString apiKey;               ///< API 密钥
     QString baseUrl;              ///< API 基础 URL
-    QString model = "gpt-4o-mini";///< 模型名称
+    QString model = "gpt-5.4-mini";///< 模型名称
     double temperature = 0.7;     ///< 温度参数（创造性）
     int maxTokens = 4096;         ///< 最大 token 数
     int timeoutMs = 60000;        ///< 超时时间（毫秒）

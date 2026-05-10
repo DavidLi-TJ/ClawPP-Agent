@@ -8,6 +8,7 @@
 #include <QVariantList>
 #include <QHash>
 #include <QTimer>
+#include <QString>
 #include "qml_models.h"
 #include "application/session_manager.h"
 #include "application/agent_service.h"
@@ -98,6 +99,10 @@ public:
     Q_INVOKABLE QString testExternalConfig(const QString& telegramToken,
                                           const QString& feishuAppId,
                                           const QString& feishuAppSecret) const;
+    Q_INVOKABLE QString formatMessageText(const QString& text,
+                                          bool markdown,
+                                          qreal lineHeight,
+                                          bool italic = false) const;
 
 signals:
     void currentSessionChanged();

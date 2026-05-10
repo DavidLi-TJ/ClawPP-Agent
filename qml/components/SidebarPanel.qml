@@ -218,6 +218,9 @@ GlassCard {
                         onClicked: {
                             var sessionId = model.id ? model.id : model.sessionId
                             if (root.backend && sessionId) {
+                                if (root.backend.generating && sessionId !== root.backend.currentSessionId) {
+                                    return
+                                }
                                 root.backend.selectSession(sessionId)
                             }
                         }

@@ -1,4 +1,4 @@
-﻿﻿import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
@@ -41,6 +41,7 @@ ApplicationWindow {
     property real settingChatLineHeight: 1.45
     property real settingPanelOpacity: 0.75
     property real settingBackgroundBlurRadius: 0.0
+    property real appliedBackgroundBlurRadius: 0.0
     property string settingBackgroundImagePath: ""
     property string settingsTestResult: ""
     property string settingsExternalTestResult: ""
@@ -97,6 +98,14 @@ ApplicationWindow {
 
     function isChannelSelected(name) {
         return normalizeProviderType(settingMessageChannel) === normalizeProviderType(name)
+    }
+
+    function clampBackgroundBlurRadius(value) {
+        var numeric = Number(value)
+        if (isNaN(numeric)) {
+            return 0
+        }
+        return Math.max(0, Math.min(36, numeric))
     }
 
     function estimatedChatBubbleWidth(text, isUser, hasBreaks, availableWidth) {
@@ -544,61 +553,61 @@ ApplicationWindow {
                 label: "OpenRouter",
                 type: "openrouter",
                 baseUrl: "https://openrouter.ai/api/v1",
-                model: "openai/gpt-4.1-mini"
+                model: "openai/gpt-5.4-mini"
             },
             {
                 label: "VolcEngine",
                 type: "volcengine",
                 baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-                model: "doubao-1-5-lite-32k-250115"
+                model: "doubao-seed-2.0-lite"
             },
             {
                 label: "BytePlus",
                 type: "byteplus",
                 baseUrl: "https://ark.byteintlapi.com/api/v3",
-                model: "doubao-1-5-pro-32k-250115"
+                model: "doubao-seed-2.0-pro"
             },
             {
                 label: "Anthropic(原生)",
                 type: "anthropic",
                 baseUrl: "https://api.anthropic.com",
-                model: "claude-3-7-sonnet-20250219"
+                model: "claude-sonnet-4-6"
             },
             {
                 label: "Azure OpenAI",
                 type: "azure_openai",
                 baseUrl: "https://{resource}.openai.azure.com",
-                model: "gpt-4o-mini"
+                model: "gpt-5.4-mini"
             },
             {
                 label: "OpenAI",
                 type: "openai",
                 baseUrl: "https://api.openai.com/v1",
-                model: "gpt-4o-mini"
+                model: "gpt-5.4-mini"
             },
             {
                 label: "DeepSeek",
                 type: "deepseek",
                 baseUrl: "https://api.deepseek.com/v1",
-                model: "deepseek-chat"
+                model: "deepseek-v4-flash"
             },
             {
                 label: "Z.AI",
                 type: "zai",
                 baseUrl: "https://api.z.ai/v1",
-                model: "glm-4.5"
+                model: "glm-5.1"
             },
             {
                 label: "Groq",
                 type: "groq",
                 baseUrl: "https://api.groq.com/openai/v1",
-                model: "llama-3.3-70b-versatile"
+                model: "meta-llama/llama-4-scout-17b-16e-instruct"
             },
             {
                 label: "MiniMax",
                 type: "minimax",
                 baseUrl: "https://api.minimax.chat/v1",
-                model: "MiniMax-Text-01"
+                model: "MiniMax-M2.5"
             },
             {
                 label: "Gemini(原生)",
@@ -610,49 +619,49 @@ ApplicationWindow {
                 label: "AIHubMix",
                 type: "aihubmix",
                 baseUrl: "https://api.aihubmix.com/v1",
-                model: "gpt-4o-mini"
+                model: "gpt-5.4-mini"
             },
             {
                 label: "SiliconFlow",
                 type: "siliconflow",
                 baseUrl: "https://api.siliconflow.cn/v1",
-                model: "Qwen/Qwen2.5-72B-Instruct"
+                model: "Qwen/Qwen3.6-Plus"
             },
             {
                 label: "DashScope(Qwen)",
                 type: "dashscope",
                 baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                model: "qwen-plus"
+                model: "qwen3.6-plus"
             },
             {
                 label: "Moonshot/Kimi",
                 type: "moonshot",
                 baseUrl: "https://api.moonshot.cn/v1",
-                model: "moonshot-v1-8k"
+                model: "kimi-k2.5"
             },
             {
                 label: "Zhipu GLM",
                 type: "zhipu",
                 baseUrl: "https://open.bigmodel.cn/api/paas/v4",
-                model: "glm-4-plus"
+                model: "glm-5"
             },
             {
                 label: "Ollama(local)",
                 type: "ollama",
                 baseUrl: "http://localhost:11434/v1",
-                model: "qwen2.5:7b"
+                model: "qwen3:8b"
             },
             {
                 label: "Mistral",
                 type: "mistral",
                 baseUrl: "https://api.mistral.ai/v1",
-                model: "mistral-large-latest"
+                model: "mistral-medium-3.5"
             },
             {
                 label: "StepFun",
                 type: "stepfun",
                 baseUrl: "https://api.stepfun.com/v1",
-                model: "step-2-16k"
+                model: "step-3.5-flash"
             },
             {
                 label: "OVMS(local)",
@@ -676,7 +685,7 @@ ApplicationWindow {
                 label: "GitHub Copilot",
                 type: "github_copilot",
                 baseUrl: "https://api.githubcopilot.com",
-                model: "gpt-4o-mini"
+                model: "gpt-5.4-mini"
             }
         ]
     }
@@ -691,30 +700,30 @@ ApplicationWindow {
 
     function providerModelSeed(providerTypeText) {
         var providerType = normalizeProviderType(providerTypeText)
-        if (providerType === "openrouter") return ["openai/gpt-4.1-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.5-flash"]
-        if (providerType === "volcengine") return ["doubao-1-5-lite-32k-250115", "doubao-1-5-pro-32k-250115", "deepseek-r1-250120"]
-        if (providerType === "byteplus") return ["doubao-1-5-pro-32k-250115", "doubao-1-5-lite-32k-250115", "deepseek-r1-250120"]
-        if (providerType === "anthropic") return ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"]
-        if (providerType === "azure_openai") return ["gpt-4o-mini", "gpt-4.1-mini", "o3-mini"]
-        if (providerType === "openai") return ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1", "o3-mini"]
-        if (providerType === "deepseek") return ["deepseek-chat", "deepseek-reasoner"]
-        if (providerType === "zai") return ["glm-4.5", "glm-4.5-air", "glm-4.5-flash"]
-        if (providerType === "groq") return ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "qwen-qwq-32b"]
-        if (providerType === "minimax") return ["MiniMax-Text-01", "MiniMax-M1", "abab6.5s-chat"]
-        if (providerType === "gemini") return ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
-        if (providerType === "aihubmix") return ["gpt-4o-mini", "claude-3.5-sonnet", "gemini-2.5-flash"]
-        if (providerType === "siliconflow") return ["Qwen/Qwen2.5-72B-Instruct", "deepseek-ai/DeepSeek-V3", "moonshotai/Kimi-K2-Instruct"]
-        if (providerType === "dashscope") return ["qwen-plus", "qwen-max", "qwq-plus"]
-        if (providerType === "moonshot") return ["moonshot-v1-8k", "moonshot-v1-32k", "kimi-k2-0711-preview"]
-        if (providerType === "zhipu") return ["glm-4-plus", "glm-4-flash", "glm-4-air"]
-        if (providerType === "ollama") return ["qwen2.5:7b", "llama3.1:8b", "deepseek-r1:8b"]
-        if (providerType === "mistral") return ["mistral-large-latest", "mistral-small-latest", "codestral-latest"]
-        if (providerType === "stepfun") return ["step-2-16k", "step-1v-8k", "step-1-8k"]
-        if (providerType === "ovms") return ["qwen2.5-7b-instruct", "llama-3.1-8b-instruct", "deepseek-r1-distill-qwen-7b"]
-        if (providerType === "vllm") return ["Qwen2.5-7B-Instruct", "Llama-3.1-8B-Instruct", "DeepSeek-R1-Distill-Qwen-7B"]
-        if (providerType === "openai_codex") return ["codex-mini-latest", "gpt-4.1", "gpt-4o-mini"]
-        if (providerType === "github_copilot") return ["gpt-4o-mini", "claude-3.5-sonnet", "gemini-2.5-flash"]
-        return ["gpt-4o-mini"]
+        if (providerType === "openrouter") return ["openai/gpt-5.4-mini", "anthropic/claude-sonnet-4-6", "google/gemini-2.5-flash"]
+        if (providerType === "volcengine") return ["doubao-seed-2.0-lite", "doubao-seed-2.0-pro", "doubao-seed-2.0-mini"]
+        if (providerType === "byteplus") return ["doubao-seed-2.0-pro", "doubao-seed-2.0-lite", "doubao-seed-2.0-mini"]
+        if (providerType === "anthropic") return ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5"]
+        if (providerType === "azure_openai") return ["gpt-5.4-mini", "gpt-5.4-nano", "o4-mini"]
+        if (providerType === "openai") return ["gpt-5.4-mini", "gpt-5.4", "gpt-5.3-instant", "o4-mini"]
+        if (providerType === "deepseek") return ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]
+        if (providerType === "zai") return ["glm-5.1", "glm-5", "glm-4.7"]
+        if (providerType === "groq") return ["meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct", "deepseek-r1-distill-llama-70b"]
+        if (providerType === "minimax") return ["MiniMax-M2.5", "MiniMax-M2.7", "MiniMax-M2.1"]
+        if (providerType === "gemini") return ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"]
+        if (providerType === "aihubmix") return ["gpt-5.4-mini", "claude-sonnet-4-6", "gemini-2.5-flash"]
+        if (providerType === "siliconflow") return ["Qwen/Qwen3.6-Plus", "deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-Max-Thinking"]
+        if (providerType === "dashscope") return ["qwen3.6-plus", "qwen3-max", "qwq-plus"]
+        if (providerType === "moonshot") return ["kimi-k2.5", "kimi-k2.6", "kimi-k2.6-thinking"]
+        if (providerType === "zhipu") return ["glm-5", "glm-5.1", "glm-4.7-flash"]
+        if (providerType === "ollama") return ["qwen3:8b", "llama4-scout:17b", "deepseek-r1:8b"]
+        if (providerType === "mistral") return ["mistral-medium-3.5", "mistral-small-2603", "codestral-latest"]
+        if (providerType === "stepfun") return ["step-3.5-flash", "step-3", "step-1v-8k"]
+        if (providerType === "ovms") return ["qwen3-8b-instruct", "llama-4-scout-17b-instruct", "deepseek-r1-distill-qwen-7b"]
+        if (providerType === "vllm") return ["Qwen3-8B-Instruct", "Llama-4-Scout-17B-Instruct", "DeepSeek-R1-Distill-Qwen-7B"]
+        if (providerType === "openai_codex") return ["codex-mini-latest", "gpt-5.4-mini", "gpt-5.3-instant"]
+        if (providerType === "github_copilot") return ["gpt-5.4-mini", "claude-sonnet-4-6", "gemini-2.5-flash"]
+        return ["gpt-5.4-mini"]
     }
 
     function rebuildProviderPresetModel() {
@@ -886,11 +895,14 @@ ApplicationWindow {
             settingChatFontSize = settings.chatFontSize ? Math.max(11, Math.min(20, Number(settings.chatFontSize))) : 13
             settingChatLineHeight = settings.chatLineHeight ? Math.max(1.15, Math.min(2.0, Number(settings.chatLineHeight))) : 1.45
             settingPanelOpacity = settings.panelOpacity ? Math.max(0.35, Math.min(0.95, Number(settings.panelOpacity))) : 0.75
-            settingBackgroundBlurRadius = settings.backgroundBlurRadius ? Math.max(0, Math.min(36, Number(settings.backgroundBlurRadius))) : 0
+            settingBackgroundBlurRadius = clampBackgroundBlurRadius(settings.backgroundBlurRadius)
             var savedBgPath = settings.backgroundImagePath ? settings.backgroundImagePath : ""
             if (savedBgPath.length > 0) {
                 settingBackgroundImagePath = savedBgPath
                 cachedBgPath = savedBgPath
+            } else {
+                settingBackgroundImagePath = ""
+                cachedBgPath = ""
             }
 
             if (apiKeyField) apiKeyField.text = settingApiKey
@@ -908,7 +920,10 @@ ApplicationWindow {
             if (wecomWebhookField) wecomWebhookField.text = settingWecomWebhookUrl
             if (chatFontSizeSlider) chatFontSizeSlider.value = settingChatFontSize
             if (chatLineHeightSlider) chatLineHeightSlider.value = settingChatLineHeight
+            if (backgroundBlurSlider) backgroundBlurSlider.value = settingBackgroundBlurRadius
             syncProviderPresetSelection(false)
+            appliedBackgroundBlurRadius = 0
+            backgroundBlurReloadTimer.restart()
         }
         loadAgentDocContent(agentDocPath)
         settingsTestResult = ""
@@ -1184,6 +1199,10 @@ ApplicationWindow {
         } else {
             clampDailyViewWindow()
         }
+        // 数据重载后重置 hover 状态，避免显示过期 tooltip
+        root.tokenHoveredDailyIndex = -1
+        root.tokenHoveredMonthlyIndex = -1
+        root.tokenHoveredYearlyIndex = -1
         tokenAnalyticsStatus = "最近 " + tokenChartDays + " 天已加载，可按年查看月度统计。"
     }
 
@@ -1240,7 +1259,7 @@ ApplicationWindow {
         tokenAllTimeTotal = stats.allTimeTotal ? Number(stats.allTimeTotal) : tokenAllTimeTotal
         tokenStatsText = stats.usageText ? stats.usageText : "本轮消耗(API)：0 Token"
 
-        if (refreshAnalytics === true || activePanel === "tokens") {
+        if (refreshAnalytics === true) {
             loadTokenUsageAnalytics()
         }
     }
@@ -1364,7 +1383,7 @@ ApplicationWindow {
         } else if (panelName === "memory") {
             loadMemoryContent()
         } else if (panelName === "tokens") {
-            loadTokenStats()
+            loadTokenStats(true)
         }
         loadCompressionInfo()
     }
@@ -1456,11 +1475,25 @@ ApplicationWindow {
         saveSettingsContent()
     }
 
+    onSettingBackgroundBlurRadiusChanged: {
+        if (!backgroundBlurReloadTimer.running) {
+            appliedBackgroundBlurRadius = clampBackgroundBlurRadius(settingBackgroundBlurRadius)
+        }
+    }
+
     Timer {
         id: settingsSaveTimer
         interval: 600
         repeat: false
         onTriggered: saveSettingsContent()
+    }
+
+    // Startup restore can leave MultiEffect on its initial shader state.
+    Timer {
+        id: backgroundBlurReloadTimer
+        interval: 0
+        repeat: false
+        onTriggered: appliedBackgroundBlurRadius = clampBackgroundBlurRadius(settingBackgroundBlurRadius)
     }
 
     Timer {
@@ -1486,9 +1519,9 @@ ApplicationWindow {
     component GlassDialog: Dialog {
         id: glassDlg
         modal: true
-        padding: 20
-        topPadding: 20
-        bottomPadding: 0
+        padding: 18
+        topPadding: 18
+        bottomPadding: 14
 
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
@@ -1528,7 +1561,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 text: glassDlg.title
                 font.pixelSize: 13
-                font.weight: Font.SemiBold
+                font.weight: Font.DemiBold
                 color: root.textPrimary
             }
         }
@@ -1536,8 +1569,11 @@ ApplicationWindow {
         background: Rectangle {
             radius: 18
             clip: true
-            color: Qt.rgba(252/255, 252/255, 255/255, 0.96)
-            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.30)
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(252/255, 252/255, 255/255, 0.93) }
+                GradientStop { position: 1.0; color: Qt.rgba(242/255, 246/255, 252/255, 0.88) }
+            }
+            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.28)
             border.width: 0.5
 
             Rectangle {
@@ -1550,102 +1586,122 @@ ApplicationWindow {
                 radius: 0.25
                 color: Qt.rgba(1, 1, 1, 0.50)
             }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: 17
+                color: "transparent"
+                border.color: Qt.rgba(255/255, 255/255, 255/255, 0.52)
+                border.width: 0.5
+            }
         }
 
-        footer: RowLayout {
-            spacing: 12
+        footer: Item {
+            implicitHeight: footerRow.implicitHeight + 12
 
-            Item { Layout.fillWidth: true }
+            RowLayout {
+                id: footerRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.leftMargin: 2
+                anchors.rightMargin: 2
+                anchors.topMargin: 12
+                spacing: 12
 
-            Button {
-                id: dlgCancelBtn
-                text: "取消"
-                implicitWidth: 80
-                implicitHeight: 32
-                font.pixelSize: 12
-                font.weight: Font.Medium
-                hoverEnabled: true
+                Item { Layout.fillWidth: true }
 
-                contentItem: Text {
-                    text: dlgCancelBtn.text
-                    font: dlgCancelBtn.font
-                    color: root.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
+                Button {
+                    id: dlgCancelBtn
+                    text: "取消"
+                    implicitWidth: 80
+                    implicitHeight: 32
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    hoverEnabled: true
 
-                background: Rectangle {
-                    radius: 16
-                    color: dlgCancelBtn.pressed
-                        ? Qt.rgba(210/255, 210/255, 225/255, 0.52)
-                        : (dlgCancelBtn.hovered
-                            ? Qt.rgba(225/255, 225/255, 240/255, 0.48)
-                            : Qt.rgba(240/255, 240/255, 250/255, 0.38))
-                    border.color: Qt.rgba(1, 1, 1, 0.55)
-                    border.width: 0.5
-
-                    Rectangle {
-                        anchors {
-                            top: parent.top
-                            horizontalCenter: parent.horizontalCenter
-                        }
-                        width: parent.width * 0.55
-                        height: 0.5
-                        radius: 0.25
-                        color: Qt.rgba(1, 1, 1, 0.50)
+                    contentItem: Text {
+                        text: dlgCancelBtn.text
+                        font: dlgCancelBtn.font
+                        color: root.textPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
+                    background: Rectangle {
+                        radius: 16
+                        color: dlgCancelBtn.pressed
+                            ? Qt.rgba(210/255, 210/255, 225/255, 0.52)
+                            : (dlgCancelBtn.hovered
+                                ? Qt.rgba(225/255, 225/255, 240/255, 0.48)
+                                : Qt.rgba(240/255, 240/255, 250/255, 0.38))
+                        border.color: Qt.rgba(1, 1, 1, 0.42)
+                        border.width: 0.5
 
-                onClicked: glassDlg.reject()
-            }
-
-            Button {
-                id: dlgAcceptBtn
-                text: "确定"
-                implicitWidth: 80
-                implicitHeight: 32
-                font.pixelSize: 12
-                font.weight: Font.Medium
-                hoverEnabled: true
-
-                contentItem: Text {
-                    text: dlgAcceptBtn.text
-                    font: dlgAcceptBtn.font
-                    color: "#FFFFFF"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                background: Rectangle {
-                    radius: 16
-                    color: dlgAcceptBtn.pressed
-                        ? Qt.rgba(0, 100/255, 220/255, 0.92)
-                        : (dlgAcceptBtn.hovered
-                            ? Qt.rgba(0, 110/255, 235/255, 0.88)
-                            : Qt.rgba(0, 122/255, 255/255, 0.82))
-                    border.color: Qt.rgba(1, 1, 1, 0.45)
-                    border.width: 0.5
-
-                    Rectangle {
-                        anchors {
-                            top: parent.top
-                            horizontalCenter: parent.horizontalCenter
+                        Rectangle {
+                            anchors {
+                                top: parent.top
+                                horizontalCenter: parent.horizontalCenter
+                            }
+                            width: parent.width * 0.55
+                            height: 0.5
+                            radius: 0.25
+                            color: Qt.rgba(1, 1, 1, 0.50)
                         }
-                        width: parent.width * 0.55
-                        height: 0.5
-                        radius: 0.25
-                        color: Qt.rgba(1, 1, 1, 0.42)
+
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    onClicked: glassDlg.reject()
                 }
 
-                onClicked: glassDlg.accept()
-            }
+                Button {
+                    id: dlgAcceptBtn
+                    text: "确定"
+                    implicitWidth: 80
+                    implicitHeight: 32
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    hoverEnabled: true
 
-            Item { Layout.fillWidth: true }
+                    contentItem: Text {
+                        text: dlgAcceptBtn.text
+                        font: dlgAcceptBtn.font
+                        color: "#FFFFFF"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    background: Rectangle {
+                        radius: 16
+                        color: dlgAcceptBtn.pressed
+                            ? Qt.rgba(0, 100/255, 220/255, 0.92)
+                            : (dlgAcceptBtn.hovered
+                                ? Qt.rgba(0, 110/255, 235/255, 0.88)
+                                : Qt.rgba(0, 122/255, 255/255, 0.82))
+                        border.color: Qt.rgba(1, 1, 1, 0.34)
+                        border.width: 0.5
+
+                        Rectangle {
+                            anchors {
+                                top: parent.top
+                                horizontalCenter: parent.horizontalCenter
+                            }
+                            width: parent.width * 0.55
+                            height: 0.5
+                            radius: 0.25
+                            color: Qt.rgba(1, 1, 1, 0.42)
+                        }
+
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    onClicked: glassDlg.accept()
+                }
+
+                Item { Layout.fillWidth: true }
+            }
         }
     }
 
@@ -1709,14 +1765,15 @@ ApplicationWindow {
         spacing: 4
 
         Button {
+            id: expanderButton
             text: expanderRoot.expanded ? "▲ 隐藏详情" : "▼ 展开详情"
             font.pixelSize: 10
             background: null
             onClicked: expanderRoot.expanded = !expanderRoot.expanded
             contentItem: Text {
-                text: parent.text
+                text: expanderButton.text
                 color: root.accent
-                font.pixelSize: parent.font.pixelSize
+                font.pixelSize: expanderButton.font.pixelSize
             }
         }
 
@@ -1825,23 +1882,59 @@ ApplicationWindow {
 
     component GlassMenu: Menu {
         id: glassMenu
+        margins: 6
+        overlap: 4
+        topPadding: 6
+        bottomPadding: 6
+        leftPadding: 6
+        rightPadding: 6
         
         background: Rectangle {
-            implicitWidth: 160
-            radius: 12
-            color: Qt.rgba(250/255, 250/255, 255/255, 0.92)
-            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.35)
+            implicitWidth: 188
+            implicitHeight: 44
+            radius: 18
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(250/255, 252/255, 255/255, 0.92) }
+                GradientStop { position: 1.0; color: Qt.rgba(237/255, 243/255, 251/255, 0.86) }
+            }
+            border.color: Qt.rgba(190/255, 190/255, 205/255, 0.28)
+            border.width: 0.5
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: 17
+                color: "transparent"
+                border.color: Qt.rgba(255/255, 255/255, 255/255, 0.46)
+                border.width: 0.5
+            }
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width * 0.66
+                height: 0.5
+                radius: 0.25
+                color: Qt.rgba(1, 1, 1, 0.42)
+            }
         }
         
         delegate: MenuItem {
             id: menuItem
-            implicitHeight: 36
+            implicitHeight: 40
+            implicitWidth: 176
+            leftPadding: 14
+            rightPadding: 14
             
             background: Rectangle {
-                radius: 6
-                color: menuItem.highlighted ? Qt.rgba(0/255, 122/255, 255/255, 0.10) : "transparent"
+                radius: 12
+                color: menuItem.highlighted
+                    ? Qt.rgba(0/255, 122/255, 255/255, 0.13)
+                    : (menuItem.enabled ? "transparent" : Qt.rgba(148/255, 163/255, 184/255, 0.08))
                 anchors.fill: parent
-                anchors.margins: 4
+                anchors.margins: 2
+                border.color: menuItem.highlighted ? Qt.rgba(0/255, 122/255, 255/255, 0.20) : "transparent"
+                border.width: menuItem.highlighted ? 0.5 : 0
                 
                 Behavior on color {
                     ColorAnimation { duration: 150 }
@@ -1850,10 +1943,12 @@ ApplicationWindow {
             
             contentItem: Text {
                 text: menuItem.text
-                color: menuItem.highlighted ? "#0066FF" : root.textPrimary
+                color: menuItem.enabled
+                    ? (menuItem.highlighted ? "#0066FF" : root.textPrimary)
+                    : Qt.rgba(107/255, 114/255, 128/255, 0.58)
                 font.pixelSize: 12
-                font.weight: menuItem.highlighted ? Font.DemiBold : Font.Normal
-                horizontalAlignment: Text.AlignHCenter
+                font.weight: menuItem.highlighted ? Font.DemiBold : Font.Medium
+                horizontalAlignment: Text.AlignLeft
                 verticalAlignment: Text.AlignVCenter
                 
                 Behavior on color {
@@ -1923,10 +2018,11 @@ ApplicationWindow {
         id: backgroundBlur
         anchors.fill: parent
         source: backgroundSource
-        blurEnabled: root.settingBackgroundBlurRadius > 0
+        autoPaddingEnabled: false
+        blurEnabled: true
         blurMax: 64
-        blur: Math.min(1.0, root.settingBackgroundBlurRadius / 36.0)
-        visible: root.settingBackgroundBlurRadius > 0
+        blur: Math.min(1.0, root.appliedBackgroundBlurRadius / 36.0)
+        visible: root.appliedBackgroundBlurRadius > 0
     }
 
     RowLayout {
@@ -2187,6 +2283,7 @@ ApplicationWindow {
                                 MouseArea {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton
+                                    enabled: !(backend && backend.generating && sessionIdValue !== root.currentSessionId)
                                     onClicked: {
                                         if (!backend) {
                                             return
@@ -2523,6 +2620,9 @@ ApplicationWindow {
                                     var sid = sessionTabs.model && sessionTabs.model.sessionIdAt
                                         ? sessionTabs.model.sessionIdAt(index)
                                         : (rowData.id ? rowData.id : (rowData.idValue ? rowData.idValue : ""))
+                                    if (backend.generating && sid !== root.currentSessionId) {
+                                        return
+                                    }
                                     if (sid.length > 0) {
                                         backend.selectSession(sid)
                                     }
@@ -2716,6 +2816,10 @@ ApplicationWindow {
                                         property string segmentTitle: thinkingMessage ? "Thinking"
                                             : (actionMessage ? "Action"
                                                 : (observationMessage ? (observationError ? "Observation / Error" : "Observation") : "System"))
+                                        property bool markdownMessage: !userMessage
+                                        property string richMessageText: backend
+                                            ? backend.formatMessageText(rawText, markdownMessage, root.settingChatLineHeight, thinkingMessage)
+                                            : rawText
                                         property string compactToolText: toolCardMessage
                                             ? ("工具 · " + toolCardName
                                                 + " · "
@@ -2915,7 +3019,7 @@ ApplicationWindow {
                                                             font.pixelSize: 11
                                                             wrapMode: Text.Wrap
                                                             lineHeightMode: Text.ProportionalHeight
-                                                            lineHeight: 1.35
+                                                            lineHeight: root.settingChatLineHeight
                                                             textFormat: Text.PlainText
                                                         }
                                                     }
@@ -2927,7 +3031,7 @@ ApplicationWindow {
                                                         font.pixelSize: 11
                                                         wrapMode: Text.Wrap
                                                         lineHeightMode: Text.ProportionalHeight
-                                                        lineHeight: 1.35
+                                                        lineHeight: root.settingChatLineHeight
                                                         textFormat: Text.PlainText
                                                     }
                                                 }
@@ -2946,35 +3050,115 @@ ApplicationWindow {
                                                 anchors.leftMargin: 11
                                                 anchors.topMargin: 11
                                                 width: parent.width - 22
-                                                text: rawText
-                                                textFormat: userMessage ? TextEdit.PlainText : TextEdit.MarkdownText
+                                                text: richMessageText
+                                                textFormat: TextEdit.RichText
                                                 color: userMessage ? "#0A3D6E" : root.textPrimary
-                                                wrapMode: TextEdit.WordWrap
+                                                wrapMode: TextEdit.Wrap
                                                 font.pixelSize: root.settingChatFontSize
-                                                font.italic: thinkingMessage
                                                 readOnly: true
                                                 selectByMouse: true
                                                 persistentSelection: true
                                                 activeFocusOnPress: true
+                                                selectedTextColor: color
+                                                selectionColor: Qt.rgba(0/255, 102/255, 255/255, 0.18)
                                             }
-                                            GlassMenu {
+                                            Popup {
                                                 id: messageMenu
+                                                parent: Overlay.overlay
+                                                modal: false
+                                                focus: true
+                                                padding: 6
+                                                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside | Popup.CloseOnReleaseOutside
 
-                                                MenuItem {
-                                                    text: "复制消息"
-                                                    onTriggered: {
-                                                        clipboardProxy.text = toolCardMessage ? toolCardBody : rawText
-                                                        clipboardProxy.selectAll()
-                                                        clipboardProxy.copy()
-                                                        clipboardProxy.deselect()
+                                                background: Rectangle {
+                                                    implicitWidth: 176
+                                                    radius: 18
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0.0; color: Qt.rgba(250/255, 252/255, 255/255, 0.92) }
+                                                        GradientStop { position: 1.0; color: Qt.rgba(237/255, 243/255, 251/255, 0.86) }
+                                                    }
+                                                    border.color: Qt.rgba(190/255, 190/255, 205/255, 0.28)
+                                                    border.width: 0.5
+
+                                                    Rectangle {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 1
+                                                        radius: 17
+                                                        color: "transparent"
+                                                        border.color: Qt.rgba(255/255, 255/255, 255/255, 0.46)
+                                                        border.width: 0.5
                                                     }
                                                 }
 
-                                                MenuItem {
-                                                    text: "删除此消息"
-                                                    onTriggered: {
-                                                        if (backend) {
-                                                            backend.deleteMessageAt(index)
+                                                contentItem: Column {
+                                                    spacing: 2
+
+                                                    Button {
+                                                        id: copyMessageButton
+                                                        width: 164
+                                                        height: 38
+                                                        text: "复制消息"
+                                                        hoverEnabled: true
+
+                                                        contentItem: Text {
+                                                            text: copyMessageButton.text
+                                                            color: copyMessageButton.hovered ? "#0066FF" : root.textPrimary
+                                                            font.pixelSize: 12
+                                                            font.weight: copyMessageButton.hovered ? Font.DemiBold : Font.Medium
+                                                            verticalAlignment: Text.AlignVCenter
+                                                        }
+
+                                                        background: Rectangle {
+                                                            radius: 12
+                                                            color: copyMessageButton.down
+                                                                ? Qt.rgba(0/255, 122/255, 255/255, 0.16)
+                                                                : (copyMessageButton.hovered
+                                                                    ? Qt.rgba(0/255, 122/255, 255/255, 0.11)
+                                                                    : "transparent")
+                                                            border.color: copyMessageButton.hovered ? Qt.rgba(0/255, 122/255, 255/255, 0.18) : "transparent"
+                                                            border.width: copyMessageButton.hovered ? 0.5 : 0
+                                                        }
+
+                                                        onClicked: {
+                                                            clipboardProxy.text = toolCardMessage ? toolCardBody : rawText
+                                                            clipboardProxy.selectAll()
+                                                            clipboardProxy.copy()
+                                                            clipboardProxy.deselect()
+                                                            messageMenu.close()
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        id: deleteMessageButton
+                                                        width: 164
+                                                        height: 38
+                                                        text: "删除此消息"
+                                                        hoverEnabled: true
+
+                                                        contentItem: Text {
+                                                            text: deleteMessageButton.text
+                                                            color: deleteMessageButton.hovered ? "#B42318" : root.textPrimary
+                                                            font.pixelSize: 12
+                                                            font.weight: deleteMessageButton.hovered ? Font.DemiBold : Font.Medium
+                                                            verticalAlignment: Text.AlignVCenter
+                                                        }
+
+                                                        background: Rectangle {
+                                                            radius: 12
+                                                            color: deleteMessageButton.down
+                                                                ? Qt.rgba(180/255, 35/255, 24/255, 0.14)
+                                                                : (deleteMessageButton.hovered
+                                                                    ? Qt.rgba(180/255, 35/255, 24/255, 0.10)
+                                                                    : "transparent")
+                                                            border.color: deleteMessageButton.hovered ? Qt.rgba(180/255, 35/255, 24/255, 0.18) : "transparent"
+                                                            border.width: deleteMessageButton.hovered ? 0.5 : 0
+                                                        }
+
+                                                        onClicked: {
+                                                            if (backend) {
+                                                                backend.deleteMessageAt(index)
+                                                            }
+                                                            messageMenu.close()
                                                         }
                                                     }
                                                 }
@@ -2983,8 +3167,11 @@ ApplicationWindow {
                                             TapHandler {
                                                 acceptedButtons: Qt.RightButton
                                                 onTapped: function(point) {
-                                                    bubble.forceActiveFocus()
-                                                    messageMenu.popup()
+                                                    bubbleText.forceActiveFocus()
+                                                    var localPoint = bubble.mapToItem(Overlay.overlay, point.position.x, point.position.y)
+                                                    messageMenu.x = Math.max(12, Math.min(root.width - messageMenu.implicitWidth - 12, localPoint.x + 8))
+                                                    messageMenu.y = Math.max(12, Math.min(root.height - messageMenu.implicitHeight - 12, localPoint.y + 8))
+                                                    messageMenu.open()
                                                 }
                                             }
                                             }
@@ -4355,6 +4542,24 @@ ApplicationWindow {
                                                             root.zoomDaily(1.1)
                                                         }
                                                     }
+                                                    onPositionChanged: function(mouse) {
+                                                        var count = root.visibleDailyCount()
+                                                        if (count <= 0) return
+                                                        var margin = 6
+                                                        var spacing = 2
+                                                        var plotWidth = tokenDailyPlot.width - margin * 2
+                                                        var barWidth = Math.max(8, (plotWidth - Math.max(0, count - 1) * spacing) / count)
+                                                        var totalRowWidth = count * barWidth + Math.max(0, count - 1) * spacing
+                                                        var startX = margin + (plotWidth - totalRowWidth) / 2
+                                                        var relX = mouseX - startX
+                                                        if (relX >= 0) {
+                                                            var idx = Math.min(Math.floor(relX / (barWidth + spacing)), count - 1)
+                                                            root.tokenHoveredDailyIndex = root.tokenDailyViewStart + idx
+                                                        } else {
+                                                            root.tokenHoveredDailyIndex = -1
+                                                        }
+                                                    }
+                                                    onExited: root.tokenHoveredDailyIndex = -1
                                                 }
 
                                                 Row {
@@ -4379,17 +4584,6 @@ ApplicationWindow {
                                                             Item {
                                                                 width: parent.width
                                                                 height: parent.height - 16
-
-                                                                MouseArea {
-                                                                    anchors.fill: parent
-                                                                    hoverEnabled: true
-                                                                    onEntered: root.tokenHoveredDailyIndex = sourceIndex
-                                                                    onExited: {
-                                                                        if (root.tokenHoveredDailyIndex === sourceIndex) {
-                                                                            root.tokenHoveredDailyIndex = -1
-                                                                        }
-                                                                    }
-                                                                }
 
                                                                 Rectangle {
                                                                     anchors.left: parent.left
@@ -4469,6 +4663,27 @@ ApplicationWindow {
                                                 color: Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.04)
                                                 border.color: Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.18)
 
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    onPositionChanged: function(mouse) {
+                                                        var count = tokenMonthlyModel.count
+                                                        if (count <= 0) return
+                                                        var leftMargin = 28
+                                                        var rightMargin = 6
+                                                        var spacing = 3
+                                                        var plotWidth = tokenMonthlyPlot.width - leftMargin - rightMargin
+                                                        var barWidth = Math.max(14, (plotWidth - (count - 1) * spacing) / count)
+                                                        var relX = mouseX - leftMargin
+                                                        if (relX >= 0) {
+                                                            root.tokenHoveredMonthlyIndex = Math.min(Math.floor(relX / (barWidth + spacing)), count - 1)
+                                                        } else {
+                                                            root.tokenHoveredMonthlyIndex = -1
+                                                        }
+                                                    }
+                                                    onExited: root.tokenHoveredMonthlyIndex = -1
+                                                }
+
                                                 Column {
                                                     anchors.left: parent.left
                                                     anchors.top: parent.top
@@ -4501,7 +4716,6 @@ ApplicationWindow {
                                                         model: tokenMonthlyModel
 
                                                         delegate: Column {
-                                                            id: monthlyDelegate
                                                             required property int index
                                                             required property int month
                                                             required property int total
@@ -4512,17 +4726,6 @@ ApplicationWindow {
                                                             Item {
                                                                 width: parent.width
                                                                 height: parent.height - 16
-
-                                                                MouseArea {
-                                                                    anchors.fill: parent
-                                                                    hoverEnabled: true
-                                                                    onEntered: root.tokenHoveredMonthlyIndex = monthlyDelegate.index
-                                                                    onExited: {
-                                                                        if (root.tokenHoveredMonthlyIndex === monthlyDelegate.index) {
-                                                                            root.tokenHoveredMonthlyIndex = -1
-                                                                        }
-                                                                    }
-                                                                }
 
                                                                 Rectangle {
                                                                     anchors.left: parent.left
@@ -4597,6 +4800,28 @@ ApplicationWindow {
                                                 color: Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.04)
                                                 border.color: Qt.rgba(42 / 255, 125 / 255, 255 / 255, 0.18)
 
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    onPositionChanged: function(mouse) {
+                                                        var count = tokenYearlyModel.count
+                                                        if (count <= 0) return
+                                                        var margin = 6
+                                                        var spacing = 6
+                                                        var plotWidth = tokenYearlyPlot.width - margin * 2
+                                                        var barWidth = Math.max(34, (plotWidth - Math.max(0, count - 1) * spacing) / count)
+                                                        var totalRowWidth = count * barWidth + Math.max(0, count - 1) * spacing
+                                                        var startX = margin + (plotWidth - totalRowWidth) / 2
+                                                        var relX = mouseX - startX
+                                                        if (relX >= 0) {
+                                                            root.tokenHoveredYearlyIndex = Math.min(Math.floor(relX / (barWidth + spacing)), count - 1)
+                                                        } else {
+                                                            root.tokenHoveredYearlyIndex = -1
+                                                        }
+                                                    }
+                                                    onExited: root.tokenHoveredYearlyIndex = -1
+                                                }
+
                                                 Row {
                                                     anchors.fill: parent
                                                     anchors.margins: 6
@@ -4615,17 +4840,6 @@ ApplicationWindow {
                                                             Item {
                                                                 width: parent.width
                                                                 height: parent.height - 16
-
-                                                                MouseArea {
-                                                                    anchors.fill: parent
-                                                                    hoverEnabled: true
-                                                                    onEntered: root.tokenHoveredYearlyIndex = index
-                                                                    onExited: {
-                                                                        if (root.tokenHoveredYearlyIndex === index) {
-                                                                            root.tokenHoveredYearlyIndex = -1
-                                                                        }
-                                                                    }
-                                                                }
 
                                                                 Rectangle {
                                                                     anchors.left: parent.left

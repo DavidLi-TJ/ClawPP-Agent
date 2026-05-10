@@ -35,6 +35,7 @@ private:
     bool isCommandBlocked(const QString& command) const;     ///< 检查命令是否被禁止
     bool isPathAllowed(const QString& path) const;           ///< 检查路径是否允许
     QString sanitizeCommand(const QString& command) const;   ///< 清理命令
+    QString adaptCommandForPlatform(const QString& command) const; ///< 兼容当前平台 shell 语法
 
     QString m_workingDirectory;     ///< 工作目录
     bool m_restrictToWorkspace;     ///< 是否限制到工作区
