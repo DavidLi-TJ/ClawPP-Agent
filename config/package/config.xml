@@ -9,9 +9,7 @@
     <StartMenuDir>Claw++</StartMenuDir>
     <TargetDir>@ApplicationsDirX64@/Claw++</TargetDir>
     <AdminTargetDir>@ApplicationsDirX64@/Claw++</AdminTargetDir>
-    <RemoveTargetDirOnUninstallation>true</RemoveTargetDirOnUninstallation>
     <ControlScript>controlscript.js</ControlScript>
-    <WizardDefaultPixmap>../../icon.png</WizardDefaultPixmap>
     <WizardShowPageList>false</WizardShowPageList>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
     <SaveDefaultRepositories>false</SaveDefaultRepositories>
