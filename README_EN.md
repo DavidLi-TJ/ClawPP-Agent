@@ -6,7 +6,7 @@
 ---
 
 <p align="center">
-  <img src="icon.png" alt="Claw++ Icon" width="128" height="128"/>
+  <img src="images/icon.png" alt="Claw++ Icon" width="128" height="128"/>
 </p>
 
 <h1 align="center">Claw++ — AI Agent Desktop Application</h1>
@@ -100,7 +100,13 @@
 
 ## Screenshots
 
-> Screenshots will be added here.
+![Claw++ Main UI](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic.png)
+
+<p align="center"><i>Claw++ Main Interface</i></p>
+
+![Token Configuration](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic2.png)
+
+<p align="center"><i>Token Configuration Panel</i></p>
 
 ---
 
