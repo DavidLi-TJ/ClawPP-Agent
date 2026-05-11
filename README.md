@@ -1,6 +1,6 @@
 <p align="center">
-  <a href="README.md"><img src="https://img.shields.io/badge/🇨🇳_中文-红色?style=for-the-badge&color=red" alt="中文"/></a>
-  <a href="README_EN.md"><img src="https://img.shields.io/badge/🇬🇧_English-蓝色?style=for-the-badge&color=blue" alt="English"/></a>
+  <a href="README_ZH.md"><img src="https://img.shields.io/badge/🇨🇳_中文-red?style=for-the-badge" alt="中文"/></a>
+  <a href="README.md"><img src="https://img.shields.io/badge/🇬🇧_English-blue?style=for-the-badge" alt="English"/></a>
 </p>
 
 ***
@@ -9,7 +9,7 @@
   <img src="images/icon.png" alt="Claw++ Icon" width="128" height="128"/>
 </p>
 
-<h1 align="center">Claw++ — AI Agent 桌面应用</h1>
+<h1 align="center">Claw++ — AI Agent Desktop Application</h1>
 
 <p align="center">
   <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
@@ -43,107 +43,112 @@
 
 ***
 
-## 📖 目录
+## 📖 Table of Contents
 
-- [📖 目录](#-目录)
-- [项目简介](#项目简介)
-  - [🌐 支持的模型服务商](#-支持的模型服务商)
-- [🚀 功能特性](#-功能特性)
-- [🏗️ 架构设计](#️-架构设计)
-- [🛠️ 技术栈](#️-技术栈)
-- [📸 项目截图](#-项目截图)
-- [📦 快速开始](#-快速开始)
-  - [📋 环境要求](#-环境要求)
-  - [🔨 构建步骤](#-构建步骤)
-  - [▶️ 运行](#️-运行)
-- [📁 项目结构](#-项目结构)
-- [🔧 开发指南](#-开发指南)
-  - [添加新工具](#添加新工具)
-  - [添加新 Provider](#添加新-provider)
-  - [调试技巧](#调试技巧)
-- [🎓 关于项目](#-关于项目)
-- [📊 项目统计](#-项目统计)
-- [📜 许可证](#-许可证)
-- [💡 致谢](#-致谢)
+- [📖 Table of Contents](#-table-of-contents)
+- [Introduction](#introduction)
+  - [✨ Why Claw++?](#-why-claw)
+  - [🌐 Supported Model Providers](#-supported-model-providers)
+- [🚀 Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📸 Screenshots](#-screenshots)
+- [📦 Installation](#-installation)
+  - [📥 Download Installer (Recommended)](#-download-installer-recommended)
+  - [🔄 Build Installer with IFW](#-build-installer-with-ifw)
+  - [🔨 Build from Source](#-build-from-source)
+    - [📋 Requirements](#-requirements)
+    - [🔨 Build Steps](#-build-steps)
+    - [🏗️ Build Installer](#️-build-installer)
+  - [▶️ Run](#️-run)
+- [📁 Project Structure](#-project-structure)
+- [🔧 Development Guide](#-development-guide)
+  - [Add a New Tool](#add-a-new-tool)
+  - [Add a New Provider](#add-a-new-provider)
+  - [Debugging Tips](#debugging-tips)
+- [🎓 About the Project](#-about-the-project)
+- [📊 Project Stats](#-project-stats)
+- [📜 License](#-license)
+- [💡 Acknowledgments](#-acknowledgments)
 
 ***
 
-## 项目简介
+## Introduction
 
-> **Claw++** 是一个基于 Qt/C++ 的现代化 AI Agent 桌面应用程序，专为 Windows 平台打造。它实现了完整的 ReAct（Reasoning + Acting）推理循环，支持 **23 种模型服务商**（涵盖 OpenAI、Anthropic、Gemini、DeepSeek、智谱等国内外主流平台），并提供丰富的工具调用能力和智能记忆管理。项目采用 Qt Quick 6 构建高颜值 Windows 11 风格玻璃质感界面，支持实时流式对话、会话管理、上下文压缩、技能系统等企业级功能。
+> **Claw++** is a modern AI Agent desktop application built with Qt/C++ for the Windows platform. It implements a complete ReAct (Reasoning + Acting) loop, supports **23 LLM service providers** (covering OpenAI, Anthropic, Gemini, DeepSeek, Zhipu and other mainstream platforms), and provides rich tool calling capabilities with intelligent memory management. Built with Qt Quick 6, it features a stunning Windows 11 glass morphism UI with real-time streaming chat, session management, context compression, and a skill plugin system.
 
-- 🤖 **ReAct 推理引擎**：思考-行动-观察循环，支持多轮自主推理与工具调用
-- 🔧 **9 大内置工具**：文件读写、Shell 命令、网络请求、子代理、搜索等
-- 💬 **实时流式对话**：基于 SSE 的流式响应，Markdown 渲染，代码高亮
-- 🔐 **三级权限系统**：Safe / Moderate / Dangerous，Shell 风险评分 1-4 级
-- 🧠 **四级记忆压缩**：Trim → Dedupe → Fold → Summarize 渐进式压缩管道
-- 🎯 **技能插件系统**：Markdown 格式技能定义，YAML 元数据，运行时热加载
-- **Win11 玻璃质感 UI**：毛玻璃面板、液态按钮、涟漪效果、流畅动画
-- 🎨 **极致个性化 UI**：自定义背景图片、毛玻璃模糊程度、行距、圆角、阴影深度，你的界面你做主
-- 🪶 **轻量小巧**：C++ 原生编译，安装包体积 < 100MB，内存占用极低，告别 Electron 的沉重
-- 🌐 **23 种模型服务商**：全面覆盖国内外主流大模型平台
-- 💾 **SQLite 持久化**：会话、消息、记忆全量存储，支持导入导出
+- 🤖 **ReAct Engine**: Think-Act-Observe loop with multi-turn autonomous reasoning and tool calling
+- 🔧 **9 Built-in Tools**: file read/write, shell commands, network requests, subagents, search, and more
+- 💬 **Real-time Streaming Chat**: SSE-based responses with Markdown rendering and code highlighting
+- 🔐 **3-Level Permission System**: Safe / Moderate / Dangerous with Shell risk scoring (1-4 levels)
+- 🧠 **4-Stage Memory Compression**: Trim → Dedupe → Fold → Summarize progressive compression pipeline
+- 🎯 **Skill Plugin System**: Markdown skill definitions with YAML metadata, hot-reload at runtime
+- **Win11 Glass Morphism UI**: Frosted panels, liquid buttons, ripple effects, smooth animations
+- 🎨 **Ultimate UI Customization**: Custom background images, adjustable frosted glass blur, line spacing, corner radii, and shadow depth — your interface, your rules
+- 🪶 **Feather-Light**: Native C++ compilation — installer under 100MB, minimal memory footprint. Say goodbye to bloated Electron apps
+- 🌐 **23 LLM Providers**: Comprehensive coverage of domestic and international platforms
+- 💾 **SQLite Persistence**: Full session, message, and memory storage with import/export support
 
-### ✨ 为什么选择 Claw++？
+### ✨ Why Claw++?
 
-> 厌倦了那些动辄几百 MB、占满内存的 AI 聊天工具？Claw++ 用 C++ 原生编译，安装包不到 100MB，运行流畅不卡顿。
+> Tired of AI chat apps that hog hundreds of MBs and eat all your RAM? Claw++ is compiled in native C++, ships in under 100MB, and runs buttery smooth.
 >
-> 不想用千篇一律的界面？Claw++ 把控制权交还给你——换一张你喜欢的背景图，调整毛玻璃的模糊程度，调大或调小行距，连圆角和阴影都能精确控制。每一个细节都可以按你的喜好来定。
+> Sick of cookie-cutter interfaces? Claw++ puts you in the driver's seat. Swap in your own background image, dial the frosted glass blur to your liking, nudge the line spacing, even tweak corner radii and shadow depth. Every detail bends to your taste.
 >
-> 想要颜值，也要效率。Windows 11 风格玻璃质感界面，搭配液态按钮和涟漪效果，好看的同时绝不拖慢你的电脑。
+> Beauty meets performance. Windows 11 glass morphism aesthetics, liquid buttons, and ripple effects — gorgeous without bogging down your machine.
 
-### 🌐 支持的模型服务商
+### 🌐 Supported Model Providers
 
-| 类别       | 服务商            |
-| -------- | -------------- |
-| **国际主流** | OpenAI         |
-| <br />   | Anthropic      |
-| <br />   | Google Gemini  |
-| <br />   | Mistral AI     |
-| <br />   | Groq           |
-| <br />   | OpenRouter     |
+| Category | Provider |
+|----------|----------|
+| **Global** | OpenAI |
+| <br />   | Anthropic |
+| <br />   | Google Gemini |
+| <br />   | Mistral AI |
+| <br />   | Groq |
+| <br />   | OpenRouter |
 | <br />   | GitHub Copilot |
-| <br />   | Azure OpenAI   |
-| <br />   | OpenAI Codex   |
-| **国内主流** | DeepSeek       |
-| <br />   | 智谱AI           |
-| <br />   | Z.ai           |
-| <br />   | 月之暗面           |
-| <br />   | 阿里通义           |
-| <br />   | 硅基流动           |
-| <br />   | 阶跃星辰           |
-| <br />   | MiniMax        |
-| <br />   | 火山引擎           |
-| <br />   | BytePlus       |
-| <br />   | AI Hub Mix     |
-| **本地部署** | Ollama         |
-| <br />   | OpenVINO       |
-| <br />   | vLLM           |
+| <br />   | Azure OpenAI |
+| <br />   | OpenAI Codex |
+| **China** | DeepSeek |
+| <br />   | Zhipu AI |
+| <br />   | Z.ai |
+| <br />   | Moonshot AI |
+| <br />   | DashScope |
+| <br />   | SiliconFlow |
+| <br />   | StepFun |
+| <br />   | MiniMax |
+| <br />   | Volcengine |
+| <br />   | BytePlus |
+| <br />   | AI Hub Mix |
+| **Local** | Ollama |
+| <br />   | OpenVINO |
+| <br />   | vLLM |
 
 ***
 
-## 🚀 功能特性
+## 🚀 Features
 
 <div align="center">
   <table>
     <tr>
-      <td align="center"><b>🤖 ReAct 推理引擎</b><br/>支持思考-行动-观察循环的自主推理</td>
-      <td align="center"><b>🔧 工具调用系统</b><br/>文件系统、Shell、网络请求等多类工具</td>
+      <td align="center"><b>🤖 ReAct Engine</b><br/>Autonomous reasoning with Think-Act-Observe loop</td>
+      <td align="center"><b>🔧 Tool Calling System</b><br/>File system, Shell, network requests, and more</td>
     </tr>
     <tr>
-      <td align="center"><b>💬 流式对话界面</b><br/>实时响应，流畅的聊天体验</td>
-      <td align="center"><b>🔐 权限管理</b><br/>三级权限（安全/中等/危险），安全执行</td>
+      <td align="center"><b>💬 Streaming Chat UI</b><br/>Real-time responses with fluent chat experience</td>
+      <td align="center"><b>🔐 Permission Management</b><br/>3-level permissions (Safe/Moderate/Dangerous), secure execution</td>
     </tr>
     <tr>
-      <td align="center"><b>🧠 智能记忆</b><br/>对话历史自动压缩，支持长期记忆</td>
-      <td align="center"><b>🎯 技能系统</b><br/>可扩展的技能插件机制</td>
+      <td align="center"><b>🧠 Smart Memory</b><br/>Auto-compressed conversation history with long-term memory</td>
+      <td align="center"><b>🎯 Skill System</b><br/>Extensible skill plugin mechanism</td>
     </tr>
   </table>
 </div>
 
 ***
 
-## 🏗️ 架构设计
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -180,7 +185,7 @@
 
 ***
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
 <p align="center">
   <img src="https://skillicons.dev/icons?i=qt,cmake,sqlite,github,git,vscode,linux,windows&perline=8" alt="tech stack"/>
@@ -197,79 +202,78 @@
 
 ***
 
-## 📸 项目截图
+## 📸 Screenshots
 
+![Main Interface](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic.png)
 
-![主界面](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic.png)
+<p align="center"><i>Claw++ Main Interface</i></p>
 
-<p align="center"><i>Claw++ 主界面</i></p>
+![Token Configuration](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic2.png)
 
-![Token 配置](https://raw.githubusercontent.com/DavidLi-TJ/ClawPP-Agent/master/images/pic2.png)
-
-<p align="center"><i>Token 配置界面</i></p>
+<p align="center"><i>Token Configuration Panel</i></p>
 
 ***
 
-## 📦 安装
+## 📦 Installation
 
-### 📥 下载安装包（推荐）
+### 📥 Download Installer (Recommended)
 
-前往 [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases) 下载最新版本的 Windows 安装包（.exe），双击即可安装，无需任何配置。
+Get the latest Windows installer (.exe) from [GitHub Releases](https://github.com/DavidLi-TJ/ClawPP-Agent/releases). Double-click to install — zero config needed.
 
-> 💡 安装包体积 < 100MB，一键安装，开箱即用
+> 💡 Installer under 100MB, one-click install, ready to use out of the box
 >
-> 📦 安装包文件：`ClawPP-Installer-v1.0.0.exe`（57.7 MB）
+> 📦 Installer file: `ClawPP-Installer-v1.0.0.exe` (57.7 MB)
 
-### 🔄 使用 IFW 自行打包
+### 🔄 Build Installer with IFW
 
-> 需要预先安装 [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/)
+> Requires [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/) to be installed first
 
 ```bash
-# 在项目根目录运行
+# Run from project root
 build_installer.bat
 ```
 
-脚本会自动完成：Release 构建 → 文件收集 → IFW 打包，最终生成 `ClawPP-Installer-v1.0.0.exe`。
+The script handles everything: Release build → gather files → IFW packaging → generates `ClawPP-Installer-v1.0.0.exe`.
 
-### 🔨 从源码构建
+### 🔨 Build from Source
 
-#### 📋 环境要求
+#### 📋 Requirements
 
-| 依赖      | 版本要求                           |
-| ------- | ------------------------------ |
-| Qt      | 6.5+                           |
-| CMake   | 3.20+                          |
-| C++ 编译器 | MSVC 2019+ / GCC 8+ / Clang 9+ |
+| Dependency | Version |
+|------------|---------|
+| Qt | 6.5+ |
+| CMake | 3.20+ |
+| C++ Compiler | MSVC 2019+ / GCC 8+ / Clang 9+ |
 
-#### 构建步骤
+#### 🔨 Build Steps
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/DavidLi-TJ/ClawPP-Agent.git
 cd ClawPP-Agent
 
-# 创建构建目录
+# Create build directory
 mkdir build && cd build
 
-# 配置项目
+# Configure the project
 cmake ..
 
-# 构建项目
+# Build the project
 cmake --build . --config Release
 ```
 
-#### 🏗️ 构建安装包
+#### 🏗️ Build Installer
 
-> 需要预先安装 [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/)
+> Requires [Qt Installer Framework](https://doc.qt.io/qtinstallerframework/) to be installed first
 
 ```bash
-# 在项目根目录运行
+# Run from project root
 build_installer.bat
 ```
 
-脚本会自动完成：Release 构建 → 文件收集 → IFW 打包，最终生成 `ClawPP-Installer-v1.0.0.exe`。
+The script handles everything: Release build → gather files → IFW packaging → generates `ClawPP-Installer-v1.0.0.exe`.
 
-### ▶️ 运行
+### ▶️ Run
 
 ```bash
 # Windows
@@ -281,97 +285,97 @@ build_installer.bat
 
 ***
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 cpqclaw/
-├── src/                          # 源代码目录
-│   ├── agent/                    # Agent 核心层
-│   │   ├── i_agent_core.h        # Agent 接口定义
-│   │   ├── react_agent_core.h    # ReAct 模式实现
-│   │   └── context_builder.h     # 上下文构建器
-│   ├── application/              # 应用层
-│   │   ├── agent_service.h       # Agent 服务
-│   │   ├── session_manager.h     # 会话管理
-│   │   └── session_thread.h      # 会话线程
-│   ├── common/                   # 公共类型和工具
-│   │   ├── types.h               # 核心数据结构
-│   │   ├── constants.h           # 常量定义
-│   │   └── result.h              # Result 模板类
-│   ├── infrastructure/           # 基础设施层
-│   │   ├── config/               # 配置管理
-│   │   ├── database/             # 数据库（SQLite）
-│   │   ├── event/                # 事件总线
-│   │   ├── logging/              # 日志系统
-│   │   └── network/              # 网络（HTTP、SSE）
-│   ├── memory/                   # 内存系统
-│   ├── permission/               # 权限管理
-│   ├── provider/                 # LLM Provider
-│   ├── skill/                    # 技能系统
-│   ├── tool/                     # 工具系统
-│   └── ui/                       # 用户界面
-├── config/                       # 配置文件
-├── qml/                          # QML UI 文件
-├── resources/                    # 资源文件
-├── CMakeLists.txt                # CMake 构建配置
-└── README.md                     # 项目说明文档
+├── src/                          # Source code directory
+│   ├── agent/                    # Agent core layer
+│   │   ├── i_agent_core.h        # Agent interface definition
+│   │   ├── react_agent_core.h    # ReAct mode implementation
+│   │   └── context_builder.h     # Context builder
+│   ├── application/              # Application layer
+│   │   ├── agent_service.h       # Agent service
+│   │   ├── session_manager.h     # Session management
+│   │   └── session_thread.h      # Session thread
+│   ├── common/                   # Common types and utilities
+│   │   ├── types.h               # Core data structures
+│   │   ├── constants.h           # Constant definitions
+│   │   └── result.h              # Result template class
+│   ├── infrastructure/           # Infrastructure layer
+│   │   ├── config/               # Configuration management
+│   │   ├── database/             # Database (SQLite)
+│   │   ├── event/                # Event bus
+│   │   ├── logging/              # Logging system
+│   │   └── network/              # Network (HTTP, SSE)
+│   ├── memory/                   # Memory system
+│   ├── permission/               # Permission management
+│   ├── provider/                 # LLM Providers
+│   ├── skill/                    # Skill system
+│   ├── tool/                     # Tool system
+│   └── ui/                       # User interface
+├── config/                       # Configuration files
+├── qml/                          # QML UI files
+├── resources/                    # Resource files
+├── CMakeLists.txt                # CMake build configuration
+└── README.md                     # Project documentation
 ```
 
 ***
 
-## 🔧 开发指南
+## 🔧 Development Guide
 
-### 添加新工具
+### Add a New Tool
 
 ```cpp
 class MyTool : public ITool {
     QString name() const override { return "my_tool"; }
-    QString description() const override { return "我的工具"; }
+    QString description() const override { return "My tool description"; }
     ToolResult execute(const QJsonObject& args) override {
-        // 实现逻辑
-        return ToolResult::success("结果");
+        // Implementation logic
+        return ToolResult::success("Result");
     }
 };
 
-// 注册工具
+// Register the tool
 ToolRegistry::instance().registerTool(new MyTool());
 ```
 
-### 添加新 Provider
+### Add a New Provider
 
 ```cpp
 class MyProvider : public ILLMProvider {
     QString name() const override { return "my-provider"; }
-    void chatStream(...) override { /* 实现流式调用 */ }
+    void chatStream(...) override { /* Implement streaming call */ }
 };
 
-// 注册 Provider
+// Register the provider
 ProviderManager::instance().registerProvider("my", new MyProvider());
 ```
 
-### 调试技巧
+### Debugging Tips
 
-使用日志系统输出调试信息：
+Use the logging system for debug output:
 
 ```cpp
-LOG_INFO("消息内容");
-LOG_DEBUG("调试信息");
-LOG_ERROR("错误信息");
+LOG_INFO("Message content");
+LOG_DEBUG("Debug information");
+LOG_ERROR("Error information");
 ```
 
-日志文件位置: `~/.clawpp/logs/app.log`
+Log file location: `~/.clawpp/logs/app.log`
 
 ***
 
-## 🎓 关于项目
+## 🎓 About the Project
 
-本项目是 **南开大学（NKU）** 的课程大作业，由 [DavidLi-TJ](https://github.com/DavidLi-TJ) 开发。
+This project was developed as a course assignment at **Nankai University (NKU)** by [DavidLi-TJ](https://github.com/DavidLi-TJ).
 
-项目使用 **Qt/C++** 框架实现，旨在探索 AI Agent 在桌面应用中的实际应用场景。
+Built with the **Qt/C++** framework, it aims to explore practical application scenarios of AI Agents in desktop applications.
 
 ***
 
-## 📊 项目统计
+## 📊 Project Stats
 
 <div align="center">
   <a href="https://github.com/DavidLi-TJ/ClawPP-Agent/stargazers">
@@ -385,23 +389,23 @@ LOG_ERROR("错误信息");
 
 ***
 
-## 📜 许可证
+## 📜 License
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ***
 
-## 💡 致谢
+## 💡 Acknowledgments
 
-- 南开大学课程项目支持
-- ReAct 论文作者的开创性工作
-- Qt 框架提供的优秀开发基础
-- 所有开源项目的贡献者
+- Nankai University course project support
+- Pioneering work by the ReAct paper authors
+- Excellent development foundation provided by the Qt framework
+- All open source project contributors
 
 ***
 
 <p align="center">
-  <b>⬆️ 觉得有帮助？给个 Star 支持一下吧！⬆️</b>
+  <b>⬆️ Found this helpful? Give it a Star! ⬆️</b>
 </p>
 
 <p align="center">
