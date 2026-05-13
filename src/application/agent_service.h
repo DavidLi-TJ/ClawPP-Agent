@@ -9,6 +9,7 @@
 #include "tool/tool_registry.h"
 #include "tool/tool_executor.h"
 #include "permission/permission_manager.h"
+#include "skill/skill.h"
 
 namespace clawpp {
 
@@ -58,6 +59,7 @@ public:
     
     QString currentSessionId() const;  ///< 获取当前会话 ID
     MessageList messageHistory() const;  ///< 获取消息历史
+    MessageList displayConversation(const MessageList& messages) const;  ///< 转换为展示用会话
     bool isRunning() const;  ///< 当前是否仍在处理请求
 
 signals:
@@ -68,6 +70,7 @@ signals:
     void responseComplete(const QString& fullResponse);    ///< 响应完成信号
     void toolCallRequested(const ToolCall& call);          ///< 工具调用请求信号
     void toolCallCompleted(const ToolCall& call, const ToolResult& result);  ///< 工具调用完成信号
+    void conversationUpdatedRaw(const MessageList& messages);  ///< 原始会话消息变化信号（持久化/上下文）
     void conversationChanged(const MessageList& messages);  ///< 会话消息变化信号
     void errorOccurred(const QString& error);              ///< 错误发生信号
     void generationStopped();                               ///< 生成停止信号
@@ -77,8 +80,14 @@ signals:
     void toolPreExecutionCompleted(const QString& toolId);     ///< 工具预执行完成
 
 private:
+    MessageList sanitizeConversationForDisplay(const MessageList& messages) const;
+    Message sanitizeMessageForDisplay(const Message& message) const;
+    bool shouldUseToolFirstExternalMode(const QString& content) const;
+    QString buildToolFirstExternalPrompt(const QString& content) const;
+    QStringList inferredRuntimeToolsForInput(const QString& content, const Skill& matchedSkill) const;
     void syncCoreState();  ///< 同步核心状态
     void connectToolExecutorSignals(); ///< 连接工具执行器信号
+    bool shouldUseMultiStepMode(const QString& content, const Skill& matchedSkill) const;
     
     ILLMProvider* m_provider;              ///< LLM Provider（外部管理）
     IMemorySystem* m_memory;               ///< 内存系统（外部管理）
@@ -100,6 +109,8 @@ private:
     QString m_currentResponse;             ///< 当前响应
     QStringList m_runtimeToolNames;        ///< 本轮可用工具白名单
     quint64 m_runGeneration;               ///< 运行代际标识，用于屏蔽过期 watchdog
+    bool m_lightweightMode;                ///< 当前是否为轻量快答模式
+    bool m_toolsEnabled;                   ///< 当前轮是否向模型暴露工具
     
     bool m_isRunning;                      ///< 是否正在运行
     mutable QMutex m_mutex;                ///< 互斥锁

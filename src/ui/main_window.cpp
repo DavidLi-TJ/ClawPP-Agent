@@ -710,7 +710,7 @@ void MainWindow::setupConnections() {
         });
     }
 
-    connect(m_agentService, &AgentService::conversationChanged, m_sessionManager, &SessionManager::updateMessages);
+    connect(m_agentService, &AgentService::conversationUpdatedRaw, m_sessionManager, &SessionManager::updateMessages);
     
     connect(m_agentService, &AgentService::responseChunk, this, [this](const StreamChunk& chunk) {
         if (m_chatView) {
@@ -1015,7 +1015,10 @@ void MainWindow::onSessionManagerSwitched(const QString& id) {
     
     Session session = m_sessionManager->currentSession();
     if (m_chatView && !session.id.isEmpty()) {
-        m_chatView->loadMessages(session.messages);
+        const MessageList displayMessages = m_agentService
+            ? m_agentService->displayConversation(session.messages)
+            : session.messages;
+        m_chatView->loadMessages(displayMessages);
         m_chatView->forceInputInteractive();
     }
     if (m_operationLabel) {

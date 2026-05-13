@@ -12,6 +12,117 @@
 
 namespace clawpp {
 
+namespace {
+bool isTransientEmptyAssistantMessage(const Message& message) {
+    return message.role == MessageRole::Assistant
+        && message.content.trimmed().isEmpty()
+        && message.toolCalls.isEmpty();
+}
+
+MessageList normalizeStoredMessages(const MessageList& messages) {
+    MessageList sanitized;
+    sanitized.reserve(messages.size());
+
+    MessageList pendingGroup;
+    QSet<QString> pendingToolIds;
+    QSet<QString> resolvedToolIds;
+
+    auto flushPendingGroup = [&](bool keep) mutable {
+        if (keep) {
+            sanitized.append(pendingGroup);
+        }
+        pendingGroup.clear();
+        pendingToolIds.clear();
+        resolvedToolIds.clear();
+    };
+
+    for (const Message& rawMessage : messages) {
+        Message message = rawMessage;
+        bool reprocessCurrent = false;
+
+        do {
+            reprocessCurrent = false;
+
+            if (pendingToolIds.isEmpty()) {
+                if (isTransientEmptyAssistantMessage(message)) {
+                    break;
+                }
+
+                if (message.role == MessageRole::Tool) {
+                    break;
+                }
+
+                if (message.role == MessageRole::Assistant && !message.toolCalls.isEmpty()) {
+                    Message toolCallMessage = message;
+                    toolCallMessage.toolCalls.clear();
+
+                    QSet<QString> nextPendingIds;
+                    for (const ToolCallData& call : message.toolCalls) {
+                        const QString callId = call.id.trimmed();
+                        if (callId.isEmpty() || nextPendingIds.contains(callId)) {
+                            continue;
+                        }
+                        toolCallMessage.toolCalls.append(call);
+                        nextPendingIds.insert(callId);
+                    }
+
+                    if (toolCallMessage.toolCalls.isEmpty()) {
+                        if (!toolCallMessage.content.trimmed().isEmpty()) {
+                            sanitized.append(toolCallMessage);
+                        }
+                        break;
+                    }
+
+                    pendingGroup.clear();
+                    pendingGroup.append(toolCallMessage);
+                    pendingToolIds = nextPendingIds;
+                    resolvedToolIds.clear();
+                    break;
+                }
+
+                if (!sanitized.isEmpty()
+                    && sanitized.last().role == MessageRole::Assistant
+                    && message.role == MessageRole::Assistant
+                    && sanitized.last().toolCalls.isEmpty()
+                    && message.toolCalls.isEmpty()
+                    && !message.content.trimmed().isEmpty()
+                    && sanitized.last().content.trimmed() == message.content.trimmed()) {
+                    break;
+                }
+
+                sanitized.append(message);
+                break;
+            }
+
+            if (message.role == MessageRole::Tool) {
+                const QString toolCallId = message.toolCallId.trimmed();
+                if (toolCallId.isEmpty()
+                    || !pendingToolIds.contains(toolCallId)
+                    || resolvedToolIds.contains(toolCallId)) {
+                    break;
+                }
+
+                pendingGroup.append(message);
+                resolvedToolIds.insert(toolCallId);
+                if (resolvedToolIds.size() == pendingToolIds.size()) {
+                    flushPendingGroup(true);
+                }
+                break;
+            }
+
+            flushPendingGroup(false);
+            reprocessCurrent = true;
+        } while (reprocessCurrent);
+    }
+
+    if (!pendingToolIds.isEmpty()) {
+        flushPendingGroup(false);
+    }
+
+    return sanitized;
+}
+}
+
 SessionManager::SessionManager(QObject* parent)
     : QObject(parent)
     , m_sessionStore(new SessionStore(this))
@@ -217,9 +328,11 @@ void SessionManager::updateMessages(const MessageList& messages) {
     if (m_currentSession.id.isEmpty()) {
         return;
     }
-    
-    m_currentSession.messages = messages;
-    const QDateTime lastAssistantAt = lastAssistantMessageTime(messages);
+
+    const MessageList sanitizedMessages = sanitizeMessages(messages);
+
+    m_currentSession.messages = sanitizedMessages;
+    const QDateTime lastAssistantAt = lastAssistantMessageTime(sanitizedMessages);
     if (lastAssistantAt.isValid()) {
         m_currentSession.updatedAt = lastAssistantAt;
     } else if (!m_currentSession.createdAt.isValid()) {
@@ -232,16 +345,16 @@ void SessionManager::updateMessages(const MessageList& messages) {
     
     // 采用“先清后写”的覆盖策略，确保 DB 与内存历史一致。
     m_conversationStore->clearSession(m_currentSession.id);
-    m_conversationStore->saveMessages(m_currentSession.id, messages);
+    m_conversationStore->saveMessages(m_currentSession.id, sanitizedMessages);
 
     if (m_memorySystem) {
         m_memorySystem->setSessionContext(m_currentSession.id, m_currentSession.name);
-        m_memorySystem->setContext(messages);
+        m_memorySystem->setContext(sanitizedMessages);
     }
 
     // 外部覆盖会话消息时，同步更新 AgentService 内部历史，避免上下文残留。
-    if (m_agentService) {
-        m_agentService->setHistory(messages);
+    if (m_agentService && !m_agentService->isRunning()) {
+        m_agentService->setHistory(sanitizedMessages);
     }
 }
 
@@ -257,6 +370,10 @@ void SessionManager::addMessage(const Message& message) {
         m_memorySystem->setSessionContext(m_currentSession.id, m_currentSession.name);
         m_memorySystem->addMessage(message);
     }
+}
+
+MessageList SessionManager::sanitizeMessages(const MessageList& messages) const {
+    return normalizeStoredMessages(messages);
 }
 
 bool SessionManager::exportSession(const QString& id, const QString& filePath, QString* errorMessage) const {

@@ -29,6 +29,8 @@ private:
     ToolResult httpPost(const QString& url, const QString& body,
                         const QJsonObject& headers, const QString& contentType,
                         int timeoutMs);
+    /// 通用网页搜索，返回结构化候选结果。
+    ToolResult webSearch(const QString& query, int timeoutMs, int maxResults);
     /// 拉取网页并做基础文本清洗。
     ToolResult webFetch(const QString& url, int timeoutMs);
     

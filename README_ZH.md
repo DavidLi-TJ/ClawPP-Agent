@@ -56,6 +56,7 @@
   - [📋 环境要求](#-环境要求)
   - [🔨 构建步骤](#-构建步骤)
   - [▶️ 运行](#️-运行)
+- [🌐 外部平台接入](#-外部平台接入)
 - [📁 项目结构](#-项目结构)
 - [🔧 开发指南](#-开发指南)
   - [添加新工具](#添加新工具)
@@ -83,6 +84,15 @@
 - 🪶 **轻量小巧**：C++ 原生编译，安装包体积 < 100MB，内存占用极低，告别 Electron 的沉重
 - 🌐 **23 种模型服务商**：全面覆盖国内外主流大模型平台
 - 💾 **SQLite 持久化**：会话、消息、记忆全量存储，支持导入导出
+
+### 🌐 外部平台当前状态
+
+- 已真正实现双向接入：`Telegram`、`Feishu`
+
+也就是说，当前版本里：
+
+- `Telegram`：支持轮询收消息、自动建会话、把模型回复发回 Telegram
+- `Feishu`：支持本地 HTTP 回调收消息、签名校验、自动建会话、把模型回复发回飞书
 
 ### ✨ 为什么选择 Claw++？
 
@@ -127,16 +137,16 @@
 <div align="center">
   <table>
     <tr>
-      <td align="center"><b>🤖 ReAct 推理引擎</b><br/>支持思考-行动-观察循环的自主推理</td>
-      <td align="center"><b>🔧 工具调用系统</b><br/>文件系统、Shell、网络请求等多类工具</td>
+      <td align="center"><b>🤖 ReAct 推理引擎</b><br/>支持多轮思考-行动-观察循环与自动续跑策略</td>
+      <td align="center"><b>🔧 10 类工具能力</b><br/>读写文件、编辑、目录、搜索、Shell、网络、系统、子代理、compact</td>
     </tr>
     <tr>
-      <td align="center"><b>💬 流式对话界面</b><br/>实时响应，流畅的聊天体验</td>
-      <td align="center"><b>🔐 权限管理</b><br/>三级权限（安全/中等/危险），安全执行</td>
+      <td align="center"><b>💬 流式对话界面</b><br/>流式输出、乐观 UI、最终消息与真实会话状态对齐</td>
+      <td align="center"><b>🔐 权限与风控</b><br/>Safe / Moderate / Dangerous + Shell 风险评分与拦截</td>
     </tr>
     <tr>
-      <td align="center"><b>🧠 智能记忆</b><br/>对话历史自动压缩，支持长期记忆</td>
-      <td align="center"><b>🎯 技能系统</b><br/>可扩展的技能插件机制</td>
+      <td align="center"><b>🧠 双层上下文压缩</b><br/>MicroCompact + Full Compact + CompactState 持续追踪</td>
+      <td align="center"><b>🎯 技能系统</b><br/>Markdown 技能定义、运行时热加载、按输入匹配</td>
     </tr>
   </table>
 </div>
@@ -145,38 +155,83 @@
 
 ## 🏗️ 架构设计
 
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ UI / QML                                                                 │
+│ Main.qml -> AppShell -> WorkspacePanel / ChatBubble / ChatComposer       │
+└───────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│ QML Bridge                                                                │
+│ QmlBackend + SessionListModel + MessageListModel                         │
+│ - 负责 UI 状态桥接、乐观气泡、流式更新、外部平台接入                       │
+└───────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Application Layer                                                         │
+│ AgentService + SessionManager + AgentOrchestrator + TemplateLoader       │
+│ - 负责会话、模式切换、技能匹配、上下文同步、线程调度                      │
+└───────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Agent Core                                                                │
+│ ReactAgentCore + ContextBuilder                                           │
+│ - ReAct 迭代、工具调用、流式处理、最终回答、上下文压缩                    │
+└───────────────────────────────────────────────────────────────────────────┘
+            │                         │                         │
+            ▼                         ▼                         ▼
+┌───────────────────┐      ┌───────────────────┐      ┌───────────────────┐
+│ Provider Layer    │      │ Tool Layer        │      │ Memory Layer      │
+│ ProviderManager   │      │ ToolRegistry      │      │ MemoryManager     │
+│ OpenAI/Anthropic/ │      │ ToolExecutor      │      │ ConversationHistory│
+│ Gemini ...        │      │ tools/*           │      │                   │
+└───────────────────┘      └───────────────────┘      └───────────────────┘
+            │                         │                         │
+            └──────────────┬──────────┴──────────┬──────────────┘
+                           ▼                     ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Infrastructure                                                            │
+│ PermissionManager / BashAnalyzer / HttpClient / SSEParser / SQLite       │
+│ ConfigManager / Logger / ExternalPlatformManager                          │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      UI Layer                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │ MainWindow  │  │  ChatView   │  │SessionPanel │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘    │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                  Application Layer                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │AgentService │  │SessionManager│ │TemplateLoader│    │
-│  └─────────────┘  └─────────────┘  └─────────────┘    │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                    Agent Core Layer                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │IAgentCore   │  │ReactAgentCore│ │ContextBuilder│   │
-│  └─────────────┘  └─────────────┘  └─────────────┘    │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                   Infrastructure Layer                  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│  │ Provider │ │  Memory  │ │   Tool   │ │Permission│  │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│  │Database  │ │  Config  │ │  Logger  │ │  Event   │  │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+
+### 当前消息流
+
+1. 用户输入先进入 `QmlBackend::sendMessage()`，界面先显示乐观 user 气泡和 assistant 占位。
+2. `AgentService::sendMessage()` 根据输入决定 lightweight mode、multi-step mode、工具范围和系统提示词。
+3. `ReactAgentCore::run()` 把真实 user message 写入当前会话上下文，并开始 ReAct 迭代。
+4. Provider 以流式方式返回内容和 tool_call delta，QML 侧持续刷新 assistant 气泡。
+5. 如需工具，`ToolExecutor` 统一执行，经过 `PermissionManager` 和 `BashAnalyzer`。
+6. `ReactAgentCore::finalizeResponse()` 统一落地最终 assistant 消息。
+7. `conversationUpdated -> SessionManager::updateMessages()` 将真实会话写入 SQLite，并同步回 UI。
+
+### 当前压缩流
+
+1. 每轮模型调用前先做 `MicroCompact`，把旧工具结果替换成占位摘要。
+2. 最新一批工具结果永不折叠，避免模型看不到刚执行完的观察结果。
+3. 若上下文仍超过阈值，则执行 `Full Compact`：
+   - 存档完整消息到本地
+   - 调模型生成结构化摘要
+   - 用摘要替换旧历史，同时保留最后一批工具结果
+4. `CompactState` 记录压缩次数、摘要、存档路径和 RecentFiles。
+
+### 外部平台消息流
+
+当前外部平台接入只保留 `Telegram` 和 `Feishu` 两条完整消息链路：
+
+1. 外部平台收到用户消息后，由 `ExternalPlatformManager` 转成 `externalMessageReceived(platform, userId, content, messageId)`。
+2. `QmlBackend` / `MainWindow` 为这个外部用户创建或切换到独立会话。
+3. 消息进入正常的 `AgentService -> ReactAgentCore` 推理链路。
+4. 最终回答完成后，再由 `ExternalPlatformManager` 回发到对应平台。
+
+其中：
+
+- `Telegram` 使用 `getUpdates` 轮询
+- `Feishu` 使用本地 `QTcpServer` 监听回调，并支持签名校验与 reply 接口
 
 ***
 
@@ -285,36 +340,35 @@ build_installer.bat
 
 ```
 cpqclaw/
-├── src/                          # 源代码目录
-│   ├── agent/                    # Agent 核心层
-│   │   ├── i_agent_core.h        # Agent 接口定义
-│   │   ├── react_agent_core.h    # ReAct 模式实现
-│   │   └── context_builder.h     # 上下文构建器
-│   ├── application/              # 应用层
-│   │   ├── agent_service.h       # Agent 服务
-│   │   ├── session_manager.h     # 会话管理
-│   │   └── session_thread.h      # 会话线程
-│   ├── common/                   # 公共类型和工具
-│   │   ├── types.h               # 核心数据结构
-│   │   ├── constants.h           # 常量定义
-│   │   └── result.h              # Result 模板类
-│   ├── infrastructure/           # 基础设施层
+├── src/
+│   ├── agent/                    # ReactAgentCore、ContextBuilder、Agent Profile
+│   ├── application/              # AgentService、SessionManager、Orchestrator、线程封装
+│   ├── common/                   # Message / Session / ToolCall / CompactState 等核心类型
+│   ├── infrastructure/
 │   │   ├── config/               # 配置管理
-│   │   ├── database/             # 数据库（SQLite）
+│   │   ├── database/             # SQLite 会话与消息存储
 │   │   ├── event/                # 事件总线
 │   │   ├── logging/              # 日志系统
-│   │   └── network/              # 网络（HTTP、SSE）
-│   ├── memory/                   # 内存系统
-│   ├── permission/               # 权限管理
-│   ├── provider/                 # LLM Provider
-│   ├── skill/                    # 技能系统
-│   ├── tool/                     # 工具系统
-│   └── ui/                       # 用户界面
+│   │   ├── network/              # HTTP、SSE、Telegram、Feishu
+│   │   └── runner/               # Shell 运行器
+│   ├── memory/                   # 记忆系统与对话历史
+│   ├── permission/               # 权限判断与 shell 风险分析
+│   ├── provider/                 # OpenAI / Anthropic / Gemini / ProviderManager
+│   ├── qml/                      # QmlBackend 与 QML ListModel 桥接
+│   ├── skill/                    # 技能定义与热加载
+│   ├── tool/
+│   │   ├── tool_registry.*       # 工具注册
+│   │   ├── tool_executor.*       # 工具执行与权限接入
+│   │   └── tools/                # read/write/edit/search/shell/network/compact 等工具
+│   └── ui/                       # Widgets 版本界面（保留）
+├── qml/                          # 主界面 QML 组件
+├── agents/                       # agent 配置和记忆模板
+├── templates/                    # SOUL / TOOLS / AGENTS 等提示词模板
+├── memory/                       # 运行时 MEMORY.md / HISTORY.md
+├── workspace/                    # 默认工作区、compact 存档等运行数据
 ├── config/                       # 配置文件
-├── qml/                          # QML UI 文件
-├── resources/                    # 资源文件
-├── CMakeLists.txt                # CMake 构建配置
-└── README.md                     # 项目说明文档
+├── resources/                    # 资源
+└── build/                        # 构建输出
 ```
 
 ***
@@ -333,7 +387,7 @@ class MyTool : public ITool {
     }
 };
 
-// 注册工具
+// 注册工具（通常在 QmlBackend::registerTools 中）
 ToolRegistry::instance().registerTool(new MyTool());
 ```
 
@@ -345,11 +399,18 @@ class MyProvider : public ILLMProvider {
     void chatStream(...) override { /* 实现流式调用 */ }
 };
 
-// 注册 Provider
-ProviderManager::instance().registerProvider("my", new MyProvider());
+// 在 ProviderManager 中接入并在配置层暴露
 ```
 
 ### 调试技巧
+
+建议优先观察以下几条链路：
+
+- `QmlBackend::sendMessage()`：看 UI 到业务入口
+- `AgentService::sendMessage()`：看模式切换、技能匹配、工具推断
+- `ReactAgentCore::processIteration()`：看 ReAct 主循环
+- `ToolExecutor::execute()`：看工具执行和权限拦截
+- `ReactAgentCore::performFullCompact()`：看全量压缩流程
 
 使用日志系统输出调试信息：
 
@@ -359,7 +420,11 @@ LOG_DEBUG("调试信息");
 LOG_ERROR("错误信息");
 ```
 
-日志文件位置: `~/.clawpp/logs/app.log`
+当前项目还附带了更详细的本地文档：
+
+- `ARCHITECTURE_QUICKSTART_CN.md`
+- `ARCHITECTURE_OVERVIEW_2026_CN.md`
+- `VIDEO_SCRIPT_15MIN_CN.md`
 
 ***
 

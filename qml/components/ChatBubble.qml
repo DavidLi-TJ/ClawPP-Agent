@@ -138,10 +138,14 @@ Item {
                     TextEdit {
                         id: textItem
                         Layout.fillWidth: true
+                        Layout.preferredWidth: contentCol.width
+                        Layout.maximumWidth: contentCol.width
+                        width: contentCol.width
+                        clip: true
                         text: root.richContent
                         color: root.isUser ? "#0A3D6E" : "#1D1D1F"
                         font.pixelSize: DesignTokens.fontSizeCallout
-                        wrapMode: TextEdit.Wrap
+                        wrapMode: TextEdit.WrapAnywhere
                         textFormat: TextEdit.RichText
                         readOnly: true
                         selectByMouse: true

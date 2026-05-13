@@ -121,6 +121,7 @@ private:
     void syncCompressionThresholdFromModel();
     void updateUsage(int promptTokens, int completionTokens, int totalTokens);
     void flushPendingAssistantChunk(bool force = false);
+    void syncMessagesIncrementally(const MessageList& messages);
     void runAssistantWithInternalPrompt(const QString& prompt);
     void persistUsageSnapshotIfNeeded();
     void ensureSessionExists();

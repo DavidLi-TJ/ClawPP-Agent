@@ -139,6 +139,9 @@ void MessageListModel::setMessages(const MessageList& messages) {
     m_items.clear();
     m_items.reserve(messages.size());
     for (const Message& message : messages) {
+        if (message.metadata.value(QStringLiteral("ui_hidden")).toBool()) {
+            continue;
+        }
         m_items.append(Item{message});
     }
     endResetModel();
@@ -202,6 +205,25 @@ void MessageListModel::appendToMessage(int row, const QString& content) {
     emit dataChanged(modelIndex, modelIndex, {ContentRole, DisplayContentRole});
 }
 
+void MessageListModel::replaceMessage(int row, const Message& message) {
+    if (row < 0 || row >= m_items.size()) {
+        return;
+    }
+
+    m_items[row].message = message;
+    const QModelIndex modelIndex = index(row);
+    emit dataChanged(modelIndex, modelIndex, {
+        SenderRole,
+        ContentRole,
+        DisplayContentRole,
+        RoleTypeRole,
+        IsUserRole,
+        IsAssistantRole,
+        TimestampRole,
+        ToolCallsRole
+    });
+}
+
 bool MessageListModel::removeMessageAt(int row) {
     if (row < 0 || row >= m_items.size()) {
         return false;
@@ -232,6 +254,10 @@ QString MessageListModel::senderText(MessageRole role) const {
 QString MessageListModel::displayContent(const Message& message) const {
     if (message.role == MessageRole::Assistant && message.content.trimmed().isEmpty()) {
         return QStringLiteral("正在生成…");
+    }
+    const QString explicitDisplay = message.metadata.value(QStringLiteral("display_content")).toString();
+    if (!explicitDisplay.trimmed().isEmpty()) {
+        return explicitDisplay;
     }
     return message.content;
 }

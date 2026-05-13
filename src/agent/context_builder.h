@@ -36,8 +36,12 @@ public:
     
     /// 构建完整系统提示词（不绑定具体用户输入）。
     QString buildSystemPrompt();
+    /// 构建轻量系统提示词（普通聊天优先快答）。
+    QString buildFastSystemPrompt();
     /// 构建和输入绑定的系统提示词（可激活匹配技能）。
     QString buildSystemPromptForInput(const QString& input);
+    /// 构建轻量输入绑定提示词（不注入重上下文）。
+    QString buildFastSystemPromptForInput(const QString& input);
     bool reloadSkills();
     QString skillsDirectory() const;
     QStringList skillLoadErrors() const;
@@ -83,6 +87,11 @@ private:
     QString loadHistory();
     QString loadSkills();
     QString buildSkillsSection();
+    QString buildSystemPromptInternal(bool includeClaudeInstructions,
+                                      bool includeMemory,
+                                      bool includeHistory,
+                                      bool includeActiveSkills,
+                                      bool includeSkillsSection);
     void bindSkillManager(const QString& skillsPath);
     void refreshSkillsFromManager();
 

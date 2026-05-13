@@ -314,11 +314,7 @@ void ConfigManager::loadDefaults() {
             {"feishu_app_secret", ""},
             {"feishu_verification_token", ""},
             {"feishu_port", 8080},
-            {"discord_webhook_url", ""},
-            {"dingtalk_webhook_url", ""},
-            {"wechat_webhook_url", ""},
-            {"qq_webhook_url", ""},
-            {"wecom_webhook_url", ""}
+            {"message_channel", "telegram"}
         }}
     };
 }

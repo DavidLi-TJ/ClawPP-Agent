@@ -49,10 +49,12 @@ struct ToolCallData {
 struct Message {
     MessageRole role;           ///< 消息角色
     QString content;            ///< 消息内容
+    QString reasoningContent;   ///< 推理过程内容（如 DeepSeek thinking mode）
     QDateTime timestamp;        ///< 时间戳
     QString name;               ///< 发送者名称
     QString toolCallId;         ///< 工具调用 ID（如果是工具消息）
     QList<ToolCallData> toolCalls;  ///< 工具调用列表（助手消息）
+    QJsonObject metadata;       ///< 运行期/展示层元数据
     
     Message() = default;
     Message(MessageRole r, const QString& c);
@@ -62,6 +64,30 @@ struct Message {
 };
 
 using MessageList = QList<Message>;
+
+struct CompactRecord {
+    int index = 0;                      ///< 第几次压缩
+    QString trigger;                    ///< 触发来源：auto/manual
+    QString focus;                      ///< 手动 compact 的 focus
+    QString archivePath;                ///< 压缩前存档路径
+    QString summary;                    ///< 上次摘要内容
+    QStringList recentFiles;            ///< 压缩时附带的最近文件
+    QDateTime createdAt;                ///< 记录时间
+
+    QJsonObject toJson() const;
+    static CompactRecord fromJson(const QJsonObject& obj);
+};
+
+struct CompactState {
+    int compactCount = 0;               ///< 会话内压缩次数
+    QString lastSummary;                ///< 最近一次摘要
+    QString lastArchivePath;            ///< 最近一次存档
+    QStringList recentFiles;            ///< 最近 read_file 访问的文件，FIFO，最多 5 个
+    QList<CompactRecord> history;       ///< 压缩历史
+
+    QJsonObject toJson() const;
+    static CompactState fromJson(const QJsonObject& obj);
+};
 
 /**
  * @struct ResponseFormat

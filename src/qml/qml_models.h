@@ -70,6 +70,7 @@ public:
     Q_INVOKABLE int addMessage(int roleType, const QString& content, const QString& name = QString());
     Q_INVOKABLE void updateMessage(int row, const QString& content);
     Q_INVOKABLE void appendToMessage(int row, const QString& content);
+    void replaceMessage(int row, const Message& message);
     Q_INVOKABLE bool removeMessageAt(int row);
     Q_INVOKABLE void clear();
 

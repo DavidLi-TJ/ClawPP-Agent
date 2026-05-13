@@ -2,9 +2,15 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QDir>
+#include <QEventLoop>
+#include <QFile>
+#include <QFileInfo>
 #include <QPointer>
 #include <QSet>
+#include <QStandardPaths>
 #include <QThread>
+#include <QTextStream>
 #include <QtConcurrent/QtConcurrent>
 #include <memory>
 
@@ -64,6 +70,567 @@ QString buildToolCallSignature(const ToolCall& toolCall) {
         + QString::fromUtf8(QJsonDocument(toolCall.arguments).toJson(QJsonDocument::Compact));
 }
 
+void normalizeToolArgsForCall(const QString& toolName, const QString& rawCallBody, QJsonObject* args);
+
+bool looksLikePlanningPreamble(const QString& text) {
+    const QString normalized = text.trimmed();
+    if (normalized.isEmpty()) {
+        return false;
+    }
+
+    static const QRegularExpression preambleRe(
+        QStringLiteral(
+            R"((?i)^(我来帮你|我来帮您|我将帮你|我将帮您|让我来|现在让我|下面我来|I will|Let me|I'll)\b)"));
+    return preambleRe.match(normalized).hasMatch();
+}
+
+bool isDeterministicToolFailure(const ToolResult& result) {
+    if (result.success) {
+        return false;
+    }
+
+    const QString lower = result.content.trimmed().toLower();
+    return lower.contains(QStringLiteral("invalid url"))
+        || lower.contains(QStringLiteral("unsupported url scheme"))
+        || lower.contains(QStringLiteral("http get failed (404)"))
+        || lower.contains(QStringLiteral("http post failed (404)"))
+        || lower.contains(QStringLiteral("not found"))
+        || lower.contains(QStringLiteral("no such file"))
+        || lower.contains(QStringLiteral("cannot find the file"))
+        || lower.contains(QStringLiteral("path not found"))
+        || lower.contains(QStringLiteral("invalid tool arguments json"))
+        || lower.contains(QStringLiteral("permission denied"))
+        || lower.contains(QStringLiteral("tool not found"))
+        || lower.contains(QStringLiteral("unsupported operation"))
+        || lower.contains(QStringLiteral("error: unknown operation"));
+}
+
+QString deterministicFailureSummary(const ToolResult& result) {
+    QString summary = result.content.simplified();
+    if (summary.size() > 160) {
+        summary = summary.left(160) + QStringLiteral("...");
+    }
+    return summary;
+}
+
+int overlapSuffixPrefixLength(const QString& left, const QString& right) {
+    const int maxOverlap = qMin(left.size(), right.size());
+    for (int len = maxOverlap; len > 0; --len) {
+        if (left.right(len) == right.left(len)) {
+            return len;
+        }
+    }
+    return 0;
+}
+
+int commonPrefixLength(const QString& left, const QString& right) {
+    const int limit = qMin(left.size(), right.size());
+    int i = 0;
+    while (i < limit && left.at(i) == right.at(i)) {
+        ++i;
+    }
+    return i;
+}
+
+bool isToolIdentifierChar(QChar ch) {
+    return ch.isLetterOrNumber() || ch == QChar('_') || ch == QChar('-') || ch == QChar('.');
+}
+
+bool startsWithKnownToolName(const QString& fragment) {
+    if (fragment.trimmed().isEmpty()) {
+        return false;
+    }
+
+    const QStringList toolNames = ToolRegistry::instance().listTools();
+    for (const QString& toolName : toolNames) {
+        if (toolName.startsWith(fragment, Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int findMatchingParen(const QString& text, int openIndex) {
+    if (openIndex < 0 || openIndex >= text.size() || text.at(openIndex) != QChar('(')) {
+        return -1;
+    }
+
+    int depth = 0;
+    bool inSingleQuote = false;
+    bool inDoubleQuote = false;
+    bool escaping = false;
+
+    for (int i = openIndex; i < text.size(); ++i) {
+        const QChar ch = text.at(i);
+        if (escaping) {
+            escaping = false;
+            continue;
+        }
+
+        if ((inSingleQuote || inDoubleQuote) && ch == QChar('\\')) {
+            escaping = true;
+            continue;
+        }
+
+        if (!inDoubleQuote && ch == QChar('\'')) {
+            inSingleQuote = !inSingleQuote;
+            continue;
+        }
+        if (!inSingleQuote && ch == QChar('"')) {
+            inDoubleQuote = !inDoubleQuote;
+            continue;
+        }
+        if (inSingleQuote || inDoubleQuote) {
+            continue;
+        }
+
+        if (ch == QChar('(')) {
+            ++depth;
+        } else if (ch == QChar(')')) {
+            --depth;
+            if (depth == 0) {
+                return i;
+            }
+        }
+    }
+
+    return -1;
+}
+
+int findTopLevelChar(const QString& text, QChar target) {
+    int parenDepth = 0;
+    int braceDepth = 0;
+    int bracketDepth = 0;
+    bool inSingleQuote = false;
+    bool inDoubleQuote = false;
+    bool escaping = false;
+
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar ch = text.at(i);
+        if (escaping) {
+            escaping = false;
+            continue;
+        }
+
+        if ((inSingleQuote || inDoubleQuote) && ch == QChar('\\')) {
+            escaping = true;
+            continue;
+        }
+
+        if (!inDoubleQuote && ch == QChar('\'')) {
+            inSingleQuote = !inSingleQuote;
+            continue;
+        }
+        if (!inSingleQuote && ch == QChar('"')) {
+            inDoubleQuote = !inDoubleQuote;
+            continue;
+        }
+        if (inSingleQuote || inDoubleQuote) {
+            continue;
+        }
+
+        if (ch == QChar('(')) {
+            ++parenDepth;
+            continue;
+        }
+        if (ch == QChar(')')) {
+            parenDepth = qMax(0, parenDepth - 1);
+            continue;
+        }
+        if (ch == QChar('{')) {
+            ++braceDepth;
+            continue;
+        }
+        if (ch == QChar('}')) {
+            braceDepth = qMax(0, braceDepth - 1);
+            continue;
+        }
+        if (ch == QChar('[')) {
+            ++bracketDepth;
+            continue;
+        }
+        if (ch == QChar(']')) {
+            bracketDepth = qMax(0, bracketDepth - 1);
+            continue;
+        }
+
+        if (parenDepth == 0 && braceDepth == 0 && bracketDepth == 0 && ch == target) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+QStringList splitTopLevelArguments(const QString& text) {
+    QStringList parts;
+    int start = 0;
+    while (start <= text.size()) {
+        const QString remaining = text.mid(start);
+        const int commaOffset = findTopLevelChar(remaining, QChar(','));
+        if (commaOffset < 0) {
+            const QString tail = remaining.trimmed();
+            if (!tail.isEmpty()) {
+                parts.append(tail);
+            }
+            break;
+        }
+
+        const QString part = remaining.left(commaOffset).trimmed();
+        if (!part.isEmpty()) {
+            parts.append(part);
+        }
+        start += commaOffset + 1;
+    }
+    return parts;
+}
+
+QJsonValue parseInlineToolValue(QString value) {
+    value = value.trimmed();
+    if (value.isEmpty()) {
+        return QJsonValue();
+    }
+
+    if ((value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith('\'') && value.endsWith('\''))) {
+        return QJsonValue(normalizeTaggedValue(value));
+    }
+
+    if (value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0) {
+        return QJsonValue(true);
+    }
+    if (value.compare(QStringLiteral("false"), Qt::CaseInsensitive) == 0) {
+        return QJsonValue(false);
+    }
+    if (value.compare(QStringLiteral("null"), Qt::CaseInsensitive) == 0) {
+        return QJsonValue(QJsonValue::Null);
+    }
+
+    bool ok = false;
+    const double numeric = value.toDouble(&ok);
+    if (ok) {
+        return QJsonValue(numeric);
+    }
+
+    if ((value.startsWith('{') && value.endsWith('}'))
+        || (value.startsWith('[') && value.endsWith(']'))) {
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(value.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError) {
+            if (doc.isObject()) {
+                return doc.object();
+            }
+            if (doc.isArray()) {
+                return doc.array();
+            }
+        }
+    }
+
+    return QJsonValue(normalizeTaggedValue(value));
+}
+
+bool parseInlineToolArguments(const QString& rawArgs, QJsonObject* args) {
+    if (!args) {
+        return false;
+    }
+
+    const QString trimmed = rawArgs.trimmed();
+    if (trimmed.isEmpty()) {
+        return true;
+    }
+
+    const QStringList parts = splitTopLevelArguments(trimmed);
+    if (parts.isEmpty()) {
+        return false;
+    }
+
+    for (const QString& part : parts) {
+        const int colonIndex = findTopLevelChar(part, QChar(':'));
+        if (colonIndex <= 0) {
+            return false;
+        }
+
+        QString key = part.left(colonIndex).trimmed();
+        QString value = part.mid(colonIndex + 1).trimmed();
+        if (key.isEmpty() || value.isEmpty()) {
+            return false;
+        }
+
+        if ((key.startsWith('"') && key.endsWith('"'))
+            || (key.startsWith('\'') && key.endsWith('\''))) {
+            key = normalizeTaggedValue(key);
+        }
+
+        if (key.isEmpty()) {
+            return false;
+        }
+
+        args->insert(key, parseInlineToolValue(value));
+    }
+
+    return true;
+}
+
+QList<CorePendingToolCall> parseInlineToolCalls(const QString& text) {
+    QList<CorePendingToolCall> parsed;
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return parsed;
+    }
+
+    int index = 0;
+    while (index < trimmed.size()) {
+        while (index < trimmed.size() && trimmed.at(index).isSpace()) {
+            ++index;
+        }
+        if (index >= trimmed.size()) {
+            break;
+        }
+
+        const int nameStart = index;
+        while (index < trimmed.size() && isToolIdentifierChar(trimmed.at(index))) {
+            ++index;
+        }
+        if (index == nameStart) {
+            parsed.clear();
+            return parsed;
+        }
+
+        const QString toolName = trimmed.mid(nameStart, index - nameStart).trimmed();
+        if (!ToolRegistry::instance().hasTool(toolName)) {
+            parsed.clear();
+            return parsed;
+        }
+
+        while (index < trimmed.size() && trimmed.at(index).isSpace()) {
+            ++index;
+        }
+        if (index >= trimmed.size() || trimmed.at(index) != QChar('(')) {
+            parsed.clear();
+            return parsed;
+        }
+
+        const int closeIndex = findMatchingParen(trimmed, index);
+        if (closeIndex < 0) {
+            parsed.clear();
+            return parsed;
+        }
+
+        const QString rawArgs = trimmed.mid(index + 1, closeIndex - index - 1);
+        QJsonObject args;
+        if (!parseInlineToolArguments(rawArgs, &args)) {
+            parsed.clear();
+            return parsed;
+        }
+
+        normalizeToolArgsForCall(toolName, rawArgs, &args);
+
+        CorePendingToolCall call;
+        call.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        call.name = toolName;
+        call.arguments = QString::fromUtf8(QJsonDocument(args).toJson(QJsonDocument::Compact));
+        parsed.append(call);
+
+        index = closeIndex + 1;
+        while (index < trimmed.size() && trimmed.at(index).isSpace()) {
+            ++index;
+        }
+    }
+
+    return parsed;
+}
+
+int leadingInlineToolCallCutIndex(const QString& text) {
+    int index = 0;
+    while (index < text.size() && text.at(index).isSpace()) {
+        ++index;
+    }
+    if (index >= text.size()) {
+        return -1;
+    }
+
+    const int nameStart = index;
+    while (index < text.size() && isToolIdentifierChar(text.at(index))) {
+        ++index;
+    }
+    if (index == nameStart) {
+        return -1;
+    }
+
+    const QString fragment = text.mid(nameStart, index - nameStart);
+    const bool exactTool = ToolRegistry::instance().hasTool(fragment);
+    const bool likelyToolPrefix = fragment.contains(QChar('_')) && startsWithKnownToolName(fragment);
+    if (!exactTool && !likelyToolPrefix) {
+        return -1;
+    }
+
+    while (index < text.size() && text.at(index).isSpace()) {
+        ++index;
+    }
+    if (index >= text.size()) {
+        return nameStart;
+    }
+
+    if (text.at(index) == QChar('(')) {
+        return nameStart;
+    }
+
+    return -1;
+}
+
+QString sanitizeVisibleAssistantStreamContent(QString text) {
+    text.remove(QRegularExpression(QStringLiteral("(?is)<tool_call>[\\s\\S]*?</tool_call>")));
+    text.remove(QRegularExpression(QStringLiteral("(?is)</?arg_(?:key|value)>")));
+
+    const int xmlStart = text.indexOf(QStringLiteral("<tool_call>"), 0, Qt::CaseInsensitive);
+    if (xmlStart >= 0) {
+        text = text.left(xmlStart);
+    }
+
+    if (!parseInlineToolCalls(text).isEmpty()) {
+        return QString();
+    }
+
+    const int inlineCallStart = leadingInlineToolCallCutIndex(text);
+    if (inlineCallStart >= 0) {
+        text = text.left(inlineCallStart);
+    }
+
+    return text;
+}
+
+Message buildAssistantToolCallMessage(const QList<CorePendingToolCall>& pendingToolCalls) {
+    Message assistantMsg(MessageRole::Assistant, QString());
+    QSet<QString> seenIds;
+
+    for (const CorePendingToolCall& pending : pendingToolCalls) {
+        const QString toolName = pending.name.trimmed();
+        const QString toolId = pending.id.trimmed();
+        if (toolName.isEmpty() || toolId.isEmpty() || seenIds.contains(toolId)) {
+            continue;
+        }
+
+        ToolCallData call;
+        call.id = toolId;
+        call.type = QStringLiteral("function");
+        call.name = toolName;
+        call.arguments = pending.arguments.trimmed().isEmpty()
+            ? QStringLiteral("{}")
+            : pending.arguments.trimmed();
+        assistantMsg.toolCalls.append(call);
+        seenIds.insert(toolId);
+    }
+
+    return assistantMsg;
+}
+
+MessageList normalizeProviderMessageSequence(const MessageList& messages) {
+    MessageList sanitized;
+    sanitized.reserve(messages.size());
+
+    MessageList pendingGroup;
+    QSet<QString> pendingToolIds;
+    QSet<QString> resolvedToolIds;
+
+    auto flushPendingGroup = [&](bool keep) mutable {
+        if (keep) {
+            sanitized.append(pendingGroup);
+        }
+        pendingGroup.clear();
+        pendingToolIds.clear();
+        resolvedToolIds.clear();
+    };
+
+    for (const Message& rawMessage : messages) {
+        Message message = rawMessage;
+        bool reprocessCurrent = false;
+
+        do {
+            reprocessCurrent = false;
+
+            if (pendingToolIds.isEmpty()) {
+                const bool invalidAssistantMessage =
+                    message.role == MessageRole::Assistant
+                    && message.content.trimmed().isEmpty()
+                    && message.toolCalls.isEmpty();
+                if (invalidAssistantMessage) {
+                    break;
+                }
+
+                if (message.role == MessageRole::Tool) {
+                    break;
+                }
+
+                if (message.role == MessageRole::Assistant && !message.toolCalls.isEmpty()) {
+                    Message toolCallMessage = message;
+                    toolCallMessage.toolCalls.clear();
+
+                    QSet<QString> nextPendingIds;
+                    for (const ToolCallData& call : message.toolCalls) {
+                        const QString callId = call.id.trimmed();
+                        if (callId.isEmpty() || nextPendingIds.contains(callId)) {
+                            continue;
+                        }
+                        toolCallMessage.toolCalls.append(call);
+                        nextPendingIds.insert(callId);
+                    }
+
+                    if (toolCallMessage.toolCalls.isEmpty()) {
+                        if (!toolCallMessage.content.trimmed().isEmpty()) {
+                            sanitized.append(toolCallMessage);
+                        }
+                        break;
+                    }
+
+                    pendingGroup.clear();
+                    pendingGroup.append(toolCallMessage);
+                    pendingToolIds = nextPendingIds;
+                    resolvedToolIds.clear();
+                    break;
+                }
+
+                if (!sanitized.isEmpty()
+                    && sanitized.last().role == MessageRole::Assistant
+                    && message.role == MessageRole::Assistant
+                    && sanitized.last().toolCalls.isEmpty()
+                    && message.toolCalls.isEmpty()
+                    && !message.content.trimmed().isEmpty()
+                    && sanitized.last().content.trimmed() == message.content.trimmed()) {
+                    break;
+                }
+
+                sanitized.append(message);
+                break;
+            }
+
+            if (message.role == MessageRole::Tool) {
+                const QString toolCallId = message.toolCallId.trimmed();
+                if (toolCallId.isEmpty()
+                    || !pendingToolIds.contains(toolCallId)
+                    || resolvedToolIds.contains(toolCallId)) {
+                    break;
+                }
+
+                pendingGroup.append(message);
+                resolvedToolIds.insert(toolCallId);
+                if (resolvedToolIds.size() == pendingToolIds.size()) {
+                    flushPendingGroup(true);
+                }
+                break;
+            }
+
+            flushPendingGroup(false);
+            reprocessCurrent = true;
+        } while (reprocessCurrent);
+    }
+
+    if (!pendingToolIds.isEmpty()) {
+        flushPendingGroup(false);
+    }
+
+    return sanitized;
+}
+
 QString stripInternalNoise(const QString& text) {
     QStringList kept;
     QSet<QString> seen;
@@ -82,6 +649,10 @@ QString stripInternalNoise(const QString& text) {
             || lower.contains(QStringLiteral("recent tool result"))
             || lower.contains(QStringLiteral("reader fallback timed out"))
             || lower.contains(QStringLiteral("target site returned 403"))) {
+            continue;
+        }
+
+        if (!parseInlineToolCalls(simplified).isEmpty()) {
             continue;
         }
 
@@ -317,6 +888,41 @@ bool isAuthLikeToolFailure(const QString& text) {
         || normalized.contains(QStringLiteral("认证失败"));
 }
 
+QString sanitizeSessionKey(QString sessionId) {
+    sessionId = sessionId.trimmed();
+    if (sessionId.isEmpty()) {
+        return QStringLiteral("default");
+    }
+    sessionId.replace(QRegularExpression(QStringLiteral(R"([^A-Za-z0-9_\-])")), QStringLiteral("_"));
+    return sessionId;
+}
+
+QString compactStateRootPath(const QString& sessionId) {
+    QString root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    if (root.isEmpty()) {
+        root = QDir::tempPath() + QStringLiteral("/clawpp");
+    }
+    return QDir(root).filePath(QStringLiteral("compact/%1").arg(sanitizeSessionKey(sessionId)));
+}
+
+QString compactStateFilePath(const QString& sessionId) {
+    return QDir(compactStateRootPath(sessionId)).filePath(QStringLiteral("compact_state.json"));
+}
+
+QString compactArchiveDirPath(const QString& sessionId) {
+    return QDir(compactStateRootPath(sessionId)).filePath(QStringLiteral("archives"));
+}
+
+QString messageRoleLabel(MessageRole role) {
+    switch (role) {
+        case MessageRole::User: return QStringLiteral("user");
+        case MessageRole::Assistant: return QStringLiteral("assistant");
+        case MessageRole::System: return QStringLiteral("system");
+        case MessageRole::Tool: return QStringLiteral("tool");
+    }
+    return QStringLiteral("unknown");
+}
+
 }
 
 ReactAgentCore::ReactAgentCore(QObject* parent)
@@ -331,8 +937,13 @@ ReactAgentCore::ReactAgentCore(QObject* parent)
     , m_retryCount(0)
     , m_lastContextTokens(0)
     , m_consecutiveToolFailureRounds(0)
+    , m_postToolRecoveryStage(0)
+    , m_lightweightMode(false)
+    , m_toolsEnabled(true)
     , m_stopped(false)
-    , m_hadToolFailure(false) {}
+    , m_hadToolFailure(false) {
+    loadCompactState();
+}
 
 void ReactAgentCore::setProvider(ILLMProvider* provider) {
     m_provider = provider;
@@ -350,11 +961,37 @@ void ReactAgentCore::setProviderConfig(const ProviderConfig& config) {
     m_providerConfig = config;
 }
 
+void ReactAgentCore::setSessionId(const QString& sessionId) {
+    const QString normalized = sessionId.trimmed();
+    if (m_sessionId == normalized) {
+        return;
+    }
+    m_sessionId = normalized;
+    m_compactState = CompactState();
+    loadCompactState();
+}
+
 void ReactAgentCore::setRuntimeToolNames(const QStringList& toolNames) {
     m_runtimeToolNames = toolNames;
 }
 
+void ReactAgentCore::setRuntimeContext(const QString& runtimeContext) {
+    m_runtimeContext = runtimeContext.trimmed();
+}
+
+void ReactAgentCore::setLightweightMode(bool enabled) {
+    m_lightweightMode = enabled;
+}
+
+void ReactAgentCore::setToolsEnabled(bool enabled) {
+    m_toolsEnabled = enabled;
+}
+
 void ReactAgentCore::run(const QString& input) {
+    run(input, QString());
+}
+
+void ReactAgentCore::run(const QString& input, const QString& runtimeContext) {
     if (!m_provider) {
         LOG_ERROR(QStringLiteral("ReactAgentCore run failed: provider is null"));
         emit errorOccurred("No provider configured");
@@ -366,16 +1003,22 @@ void ReactAgentCore::run(const QString& input) {
     m_iteration = 0;
     m_currentThought.clear();
     m_currentContent.clear();
+    m_currentReasoningContent.clear();
     m_pendingToolCalls.clear();
     m_preExecutingTools.clear();
     m_preExecutedResults.clear();
     m_parsedToolIds.clear();
     m_toolCallExecutionCounts.clear();
+    m_deterministicFailedToolCalls.clear();
     m_noToolIterationStreak = 0;
     m_retryCount = 0;
     m_lastContextTokens = 0;
     m_consecutiveToolFailureRounds = 0;
+    m_postToolRecoveryStage = 0;
     m_hadToolFailure = false;
+    if (!runtimeContext.trimmed().isEmpty()) {
+        m_runtimeContext = runtimeContext.trimmed();
+    }
 
     m_messages = m_context;
     
@@ -397,6 +1040,7 @@ void ReactAgentCore::stop() {
     m_preExecutedResults.clear();
     m_pendingToolCalls.clear();
     m_toolCallExecutionCounts.clear();
+    m_deterministicFailedToolCalls.clear();
     if (m_provider) {
         m_provider->abort();
     }
@@ -428,7 +1072,7 @@ void ReactAgentCore::processIteration() {
     options.maxTokens = m_providerConfig.maxTokens;
     options.stream = m_provider->supportsStreaming();
 
-    if (m_provider->supportsTools()) {
+    if (m_toolsEnabled && m_provider->supportsTools()) {
         if (!m_runtimeToolNames.isEmpty()) {
             QJsonArray scopedTools;
             for (const QString& toolName : m_runtimeToolNames) {
@@ -598,7 +1242,13 @@ bool ReactAgentCore::finalizeIfStoppedOrExceeded() {
 MessageList ReactAgentCore::buildIterationMessages() const {
     MessageList messages;
     QString mergedSystemPrompt = m_systemPrompt;
-    if (m_memory) {
+    if (!m_runtimeContext.trimmed().isEmpty()) {
+        if (!mergedSystemPrompt.trimmed().isEmpty()) {
+            mergedSystemPrompt += QStringLiteral("\n\n");
+        }
+        mergedSystemPrompt += m_runtimeContext.trimmed();
+    }
+    if (!m_lightweightMode && m_memory) {
         const QStringList semanticMemory = m_memory->queryRelevantMemory(
             m_messages.isEmpty() ? QString() : m_messages.last().content, 6);
         if (!semanticMemory.isEmpty()) {
@@ -610,10 +1260,14 @@ MessageList ReactAgentCore::buildIterationMessages() const {
         messages.append(Message(MessageRole::System, mergedSystemPrompt));
     }
 
-    MessageList contextMessages = m_messages;
+    MessageList contextMessages = sanitizeMessagesForProvider(m_messages);
     compressMessagesForContext(contextMessages);
     messages.append(contextMessages);
     return messages;
+}
+
+MessageList ReactAgentCore::sanitizeMessagesForProvider(const MessageList& messages) {
+    return normalizeProviderMessageSequence(messages);
 }
 
 void ReactAgentCore::handleStreamChunk(const StreamChunk& chunk, quint64 runGeneration) {
@@ -621,11 +1275,67 @@ void ReactAgentCore::handleStreamChunk(const StreamChunk& chunk, quint64 runGene
         return;
     }
 
+    const QString visibleBefore = sanitizeVisibleAssistantStreamContent(m_currentContent);
+
     if (!chunk.content.isEmpty()) {
-        m_currentThought += chunk.content;
-        m_currentContent += chunk.content;
+        QString delta = chunk.content;
+        if (m_currentContent == chunk.content || m_currentContent.endsWith(chunk.content)) {
+            delta.clear();
+        } else if (chunk.content.startsWith(m_currentContent)) {
+            delta = chunk.content.mid(m_currentContent.size());
+        } else {
+            const int overlap = overlapSuffixPrefixLength(m_currentContent, chunk.content);
+            if (overlap > 0) {
+                delta = chunk.content.mid(overlap);
+            }
+        }
+
+        if (!delta.isEmpty()) {
+            m_currentThought += delta;
+            m_currentContent += delta;
+        }
     }
-    emit responseChunk(chunk);
+
+    if (!chunk.reasoningContent.isEmpty()) {
+        QString delta = chunk.reasoningContent;
+        if (m_currentReasoningContent == chunk.reasoningContent
+            || m_currentReasoningContent.endsWith(chunk.reasoningContent)) {
+            delta.clear();
+        } else if (chunk.reasoningContent.startsWith(m_currentReasoningContent)) {
+            delta = chunk.reasoningContent.mid(m_currentReasoningContent.size());
+        } else {
+            const int overlap = overlapSuffixPrefixLength(m_currentReasoningContent, chunk.reasoningContent);
+            if (overlap > 0) {
+                delta = chunk.reasoningContent.mid(overlap);
+            }
+        }
+
+        if (!delta.isEmpty()) {
+            m_currentReasoningContent += delta;
+        }
+    }
+
+    StreamChunk visibleChunk = chunk;
+    if (!chunk.content.isEmpty()) {
+        const QString visibleAfter = sanitizeVisibleAssistantStreamContent(m_currentContent);
+        QString visibleDelta;
+        if (visibleAfter == visibleBefore || visibleBefore.endsWith(visibleAfter)) {
+            visibleDelta.clear();
+        } else if (visibleAfter.startsWith(visibleBefore)) {
+            visibleDelta = visibleAfter.mid(visibleBefore.size());
+        } else {
+            const int prefix = commonPrefixLength(visibleBefore, visibleAfter);
+            if (prefix > 0 && visibleAfter.size() >= prefix) {
+                visibleDelta = visibleAfter.mid(prefix);
+            } else {
+                const int overlap = overlapSuffixPrefixLength(visibleBefore, visibleAfter);
+                visibleDelta = overlap > 0 ? visibleAfter.mid(overlap) : visibleAfter;
+            }
+        }
+        visibleChunk.content = visibleDelta;
+    }
+
+    emit responseChunk(visibleChunk);
 
     if (chunk.hasUsage) {
         emit usageReport(chunk.promptTokens, chunk.completionTokens, chunk.totalTokens);
@@ -722,7 +1432,21 @@ void ReactAgentCore::processThought() {
             }
             m_currentContent.remove(QRegularExpression(QStringLiteral("(?is)<tool_call>[\\s\\S]*?</tool_call>")));
             m_currentContent.remove(QRegularExpression(QStringLiteral("(?is)</?arg_(?:key|value)>")));
+            m_currentContent = sanitizeVisibleAssistantStreamContent(m_currentContent);
             m_currentThought = m_currentContent;
+        } else {
+            const QList<CorePendingToolCall> inlineCalls = parseInlineToolCalls(m_currentContent);
+            if (!inlineCalls.isEmpty()) {
+                for (const CorePendingToolCall& call : inlineCalls) {
+                    m_pendingToolCalls.append(call);
+                    if (!m_parsedToolIds.contains(call.id)) {
+                        m_parsedToolIds.insert(call.id);
+                        emit toolCallParsed(createToolCall(call));
+                    }
+                }
+                m_currentContent.clear();
+                m_currentThought.clear();
+            }
         }
     }
 
@@ -734,6 +1458,33 @@ void ReactAgentCore::processThought() {
         ++m_noToolIterationStreak;
         const QString trimmedContent = m_currentContent.trimmed();
         if (!trimmedContent.isEmpty()) {
+            const bool planningOnlyWithTools =
+                m_toolsEnabled
+                && !hasRecentToolResult()
+                && looksLikePlanningPreamble(trimmedContent);
+            if (planningOnlyWithTools
+                && m_noToolIterationStreak < (constants::MAX_NO_TOOL_STREAK + 1)) {
+                LOG_INFO(QStringLiteral("ReactAgentCore detected planning preamble without tool call, forcing tool-first retry at iteration %1")
+                    .arg(m_iteration));
+                appendRecoveryMessage(QStringLiteral("不要继续口头说明。直接调用完成该请求所需的最少工具；若用户要求保存结果，完成写入后再给最终回答。"));
+                emit conversationUpdated(m_messages);
+                m_currentThought.clear();
+                m_currentContent.clear();
+                const quint64 runGeneration = m_runGeneration;
+                QTimer::singleShot(60, this, [this, runGeneration]() {
+                    if (m_stopped || runGeneration != m_runGeneration) {
+                        return;
+                    }
+                    processIteration();
+                });
+                return;
+            }
+
+            if (m_lightweightMode) {
+                LOG_INFO(QStringLiteral("ReactAgentCore lightweight mode completed in iteration %1").arg(m_iteration));
+                finalizeResponse(trimmedContent);
+                return;
+            }
             const bool shouldContinue = shouldContinueForInterimContent(trimmedContent)
                 || isLikelyTruncatedAssistantTurn(trimmedContent);
             if (shouldContinue
@@ -756,6 +1507,69 @@ void ReactAgentCore::processThought() {
                 finalizeResponse(trimmedContent);
                 return;
             }
+        }
+
+        if (trimmedContent.isEmpty() && hasRecentToolResult()) {
+            if (m_postToolRecoveryStage <= 1) {
+                ++m_postToolRecoveryStage;
+                const bool shellAlreadyUsed = hasRecentToolNamed(QStringLiteral("shell"));
+                QString recoveryPrompt = QStringLiteral("继续完成用户请求。如果还需要工具，请直接执行下一步必要操作；只有任务完成后再给最终回答。");
+                if (!shellAlreadyUsed) {
+                    recoveryPrompt = QStringLiteral("继续完成用户请求。如果你目前只创建或检查了文件，下一步应直接执行必要命令（例如编译、运行或验证），不要重复前导说明。任务真正完成后再给最终回答。");
+                }
+                appendRecoveryMessage(recoveryPrompt);
+                emit conversationUpdated(m_messages);
+                const quint64 runGeneration = m_runGeneration;
+                QTimer::singleShot(60, this, [this, runGeneration]() {
+                    if (m_stopped || runGeneration != m_runGeneration) {
+                        return;
+                    }
+                    processIteration();
+                });
+                return;
+            }
+
+            if (m_postToolRecoveryStage == 2) {
+                m_postToolRecoveryStage = 3;
+                appendRecoveryMessage(QStringLiteral("不要重复计划。基于已有工具结果直接给出最终回答；除非绝对必要，不要再调用工具。"));
+                m_toolsEnabled = false;
+                emit conversationUpdated(m_messages);
+                const quint64 runGeneration = m_runGeneration;
+                QTimer::singleShot(60, this, [this, runGeneration]() {
+                    if (m_stopped || runGeneration != m_runGeneration) {
+                        return;
+                    }
+                    processIteration();
+                });
+                return;
+            }
+        }
+
+        if (trimmedContent.isEmpty() && m_postToolRecoveryStage >= 3 && hasRecentToolResult()) {
+            finalizeResponse(QString());
+            return;
+        }
+
+        if (trimmedContent.isEmpty() && looksLikePlanningPreamble(m_currentThought)) {
+            finalizeResponse(QString());
+            return;
+        }
+
+        if (trimmedContent.isEmpty() && m_lightweightMode) {
+            finalizeResponse(QString());
+            return;
+        }
+
+        if (trimmedContent.isEmpty() && hasRecentToolResult() && m_postToolRecoveryStage > 0) {
+            emit conversationUpdated(m_messages);
+            const quint64 runGeneration = m_runGeneration;
+            QTimer::singleShot(60, this, [this, runGeneration]() {
+                if (m_stopped || runGeneration != m_runGeneration) {
+                    return;
+                }
+                processIteration();
+            });
+            return;
         }
 
         if (shouldTerminateByNoToolStreak()) {
@@ -783,6 +1597,25 @@ void ReactAgentCore::executeToolCalls() {
     // 先等待所有预执行的工具完成
     checkPreExecutionResults();
 
+    for (CorePendingToolCall& pendingToolCall : m_pendingToolCalls) {
+        if (pendingToolCall.name.trimmed().isEmpty()) {
+            continue;
+        }
+        if (pendingToolCall.id.trimmed().isEmpty()) {
+            pendingToolCall.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        }
+    }
+
+    const Message assistantToolCallMsg = buildAssistantToolCallMessage(m_pendingToolCalls);
+    if (!assistantToolCallMsg.toolCalls.isEmpty()) {
+        Message storedAssistantToolCallMsg = assistantToolCallMsg;
+        storedAssistantToolCallMsg.reasoningContent = m_currentReasoningContent;
+        m_messages.append(storedAssistantToolCallMsg);
+        if (m_memory) {
+            m_memory->addMessage(storedAssistantToolCallMsg);
+        }
+    }
+
     // 准备工具调用列表
     QVector<ToolCall> validToolCalls;
     QVector<int> validToolIndexes;  // 记录有效工具在原始列表中的索引
@@ -792,11 +1625,10 @@ void ReactAgentCore::executeToolCalls() {
         
         if (pendingToolCall.name.isEmpty()) {
             LOG_WARN(QStringLiteral("Skipping pending tool call with empty name"));
-            Message toolMsg(MessageRole::Tool, QStringLiteral("Tool execution failed: empty tool name"));
-            toolMsg.toolCallId = pendingToolCall.id;
-            m_messages.append(toolMsg);
+            Message systemMsg(MessageRole::System, QStringLiteral("Tool execution failed: empty tool name"));
+            m_messages.append(systemMsg);
             if (m_memory) {
-                m_memory->addMessage(toolMsg);
+                m_memory->addMessage(systemMsg);
             }
             continue;
         }
@@ -820,6 +1652,7 @@ void ReactAgentCore::executeToolCalls() {
             Message toolMsg(MessageRole::Tool, invalidArgsResult.content);
             toolMsg.toolCallId = toolCall.id;
             toolMsg.name = toolCall.name;
+            toolMsg.metadata = invalidArgsResult.metadata;
             m_messages.append(toolMsg);
             if (m_memory) {
                 m_memory->addMessage(toolMsg);
@@ -828,6 +1661,27 @@ void ReactAgentCore::executeToolCalls() {
         }
 
         const QString signature = buildToolCallSignature(toolCall);
+        const QString deterministicFailure = m_deterministicFailedToolCalls.value(signature);
+        if (!deterministicFailure.isEmpty()) {
+            LOG_WARN(QStringLiteral("Blocking deterministic retry of tool '%1'").arg(toolCall.name));
+            m_hadToolFailure = true;
+            Message toolMsg(
+                MessageRole::Tool,
+                QStringLiteral("Tool execution blocked: deterministic failure already observed (%1). Change the arguments or choose a different method instead of repeating the same call.")
+                    .arg(deterministicFailure));
+            toolMsg.toolCallId = toolCall.id;
+            toolMsg.name = toolCall.name;
+            toolMsg.metadata[QStringLiteral("display_content")] =
+                QStringLiteral("工具 %1 被阻止重复执行").arg(toolCall.name);
+            toolMsg.metadata[QStringLiteral("internal")] = true;
+            toolMsg.metadata[QStringLiteral("ui_hidden")] = true;
+            m_messages.append(toolMsg);
+            if (m_memory) {
+                m_memory->addMessage(toolMsg);
+            }
+            continue;
+        }
+
         const int executedCount = m_toolCallExecutionCounts.value(signature, 0);
         if (executedCount >= 3) {
             LOG_WARN(QStringLiteral("Blocking repetitive tool call '%1' after %2 executions")
@@ -840,6 +1694,10 @@ void ReactAgentCore::executeToolCalls() {
                     .arg(toolCall.name));
             toolMsg.toolCallId = toolCall.id;
             toolMsg.name = toolCall.name;
+            toolMsg.metadata[QStringLiteral("display_content")] =
+                QStringLiteral("工具 %1 被阻止重复执行").arg(toolCall.name);
+            toolMsg.metadata[QStringLiteral("internal")] = true;
+            toolMsg.metadata[QStringLiteral("ui_hidden")] = true;
             m_messages.append(toolMsg);
             if (m_memory) {
                 m_memory->addMessage(toolMsg);
@@ -924,6 +1782,11 @@ void ReactAgentCore::executeToolCalls() {
             failureSummaries.append(QStringLiteral("%1: %2")
                                         .arg(toolCall.name,
                                              compact.left(120) + (compact.size() > 120 ? QStringLiteral("...") : QString())));
+            if (isDeterministicToolFailure(result)) {
+                m_deterministicFailedToolCalls.insert(
+                    buildToolCallSignature(toolCall),
+                    deterministicFailureSummary(result));
+            }
         }
 
         const QString toolContent = result.content.trimmed().isEmpty()
@@ -932,7 +1795,24 @@ void ReactAgentCore::executeToolCalls() {
         Message toolMsg(MessageRole::Tool, toolContent);
         toolMsg.toolCallId = toolCall.id;
         toolMsg.name = toolCall.name;
+        toolMsg.metadata = result.metadata;
         m_messages.append(toolMsg);
+
+        if (toolCall.name == QStringLiteral("read_file")) {
+            const QString recentFilePath = result.metadata.value(QStringLiteral("recent_file_path")).toString();
+            if (!recentFilePath.isEmpty()) {
+                recordRecentFile(recentFilePath);
+            }
+        }
+
+        if (toolCall.name == QStringLiteral("compact") && result.success) {
+            const QString focus = toolCall.arguments.value(QStringLiteral("focus")).toString();
+            const bool compacted = performFullCompact(QStringLiteral("manual"), focus);
+            if (!compacted) {
+                Message compactError(MessageRole::System, QStringLiteral("Compact failed; keep current history unchanged."));
+                m_messages.append(compactError);
+            }
+        }
 
         if (m_memory) {
             m_memory->addMessage(toolMsg);
@@ -973,6 +1853,8 @@ void ReactAgentCore::executeToolCalls() {
     m_pendingToolCalls.clear();
     m_currentThought.clear();
     m_currentContent.clear();
+    m_currentReasoningContent.clear();
+    m_postToolRecoveryStage = 0;
     const quint64 runGeneration = m_runGeneration;
     QTimer::singleShot(100, this, [this, runGeneration]() {
         if (m_stopped || runGeneration != m_runGeneration) {
@@ -1050,31 +1932,79 @@ bool ReactAgentCore::hasFinalAnswerMarker(const QString& text) const {
     return markerRegex.match(text).hasMatch();
 }
 
+bool ReactAgentCore::hasRecentToolResult() const {
+    for (auto it = m_messages.crbegin(); it != m_messages.crend(); ++it) {
+        if (it->role == MessageRole::Assistant && !it->content.trimmed().isEmpty()) {
+            return false;
+        }
+        if (it->role == MessageRole::Tool && !it->content.trimmed().isEmpty()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ReactAgentCore::hasRecentToolNamed(const QString& toolName, int maxLookback) const {
+    const QString normalized = toolName.trimmed().toLower();
+    if (normalized.isEmpty()) {
+        return false;
+    }
+
+    int scanned = 0;
+    for (auto it = m_messages.crbegin(); it != m_messages.crend() && scanned < maxLookback; ++it, ++scanned) {
+        if (it->role == MessageRole::Assistant && !it->content.trimmed().isEmpty()) {
+            break;
+        }
+        if (it->role == MessageRole::Tool && it->name.trimmed().toLower() == normalized) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QString ReactAgentCore::buildRecentToolResultSummary(int maxItems, int maxCharsPerItem) const {
+    QStringList snippets;
+    for (auto it = m_messages.crbegin(); it != m_messages.crend(); ++it) {
+        if (it->role != MessageRole::Tool) {
+            if (!snippets.isEmpty() && it->role == MessageRole::Assistant) {
+                break;
+            }
+            continue;
+        }
+
+        QString snippet = it->content.simplified();
+        if (snippet.isEmpty()) {
+            continue;
+        }
+        if (snippet.size() > maxCharsPerItem) {
+            snippet = snippet.left(maxCharsPerItem) + QStringLiteral("...");
+        }
+        if (!it->name.trimmed().isEmpty()) {
+            snippet = QStringLiteral("%1: %2").arg(it->name, snippet);
+        }
+        snippets.prepend(snippet);
+        if (snippets.size() >= maxItems) {
+            break;
+        }
+    }
+
+    return snippets.join(QStringLiteral(" | "));
+}
+
 void ReactAgentCore::finalizeResponse(const QString& finalMessage) {
     QString normalizedMessage = stripInternalNoise(finalMessage);
     if (normalizedMessage.isEmpty()) {
-        QString latestToolSnippet;
-        for (auto it = m_messages.crbegin(); it != m_messages.crend(); ++it) {
-            if (it->role != MessageRole::Tool) {
-                continue;
-            }
-            latestToolSnippet = it->content.simplified();
-            if (!latestToolSnippet.isEmpty()) {
-                break;
-            }
-        }
-
+        const QString latestToolSnippet = buildRecentToolResultSummary();
         if (!latestToolSnippet.isEmpty()) {
-            if (latestToolSnippet.size() > 160) {
-                latestToolSnippet = latestToolSnippet.left(160) + QStringLiteral("...");
-            }
-            normalizedMessage = QStringLiteral("模型未给出最终回答。最近工具结果：%1").arg(latestToolSnippet);
+            normalizedMessage = QStringLiteral("模型未继续总结工具结果。最近工具结果：%1").arg(latestToolSnippet);
         } else {
             normalizedMessage = QStringLiteral("（模型返回空响应）");
         }
     }
     // 统一在收尾阶段落地 assistant 消息，保证 UI 与 memory 视图一致。
     Message assistantMsg(MessageRole::Assistant, normalizedMessage);
+    assistantMsg.reasoningContent = m_currentReasoningContent;
     m_messages.append(assistantMsg);
 
     if (m_memory) {
@@ -1086,219 +2016,103 @@ void ReactAgentCore::finalizeResponse(const QString& finalMessage) {
 }
 
 void ReactAgentCore::compressMessagesForContext(MessageList& messages) const {
-    if (messages.size() <= constants::MEMORY_KEEP_FIRST + constants::MEMORY_KEEP_LAST + 1) {
-        return;
-    }
-
-    const int compressionThreshold = contextCompressionThreshold(m_providerConfig);
-
-    int totalTokens = 0;
-    for (const Message& message : messages) {
-        totalTokens += estimateTokens(message.content);
-    }
-
-    if (totalTokens <= compressionThreshold) {
-        return;
-    }
-
-    LOG_INFO(QStringLiteral("Starting progressive compression, current tokens: %1").arg(totalTokens));
-
-    // 四级渐进式压缩流水线
-    // Level 1: 裁剪（Trim）- 截断旧工具输出的大块内容
-    int savedTokens = performLevel1Trim(messages);
-    LOG_INFO(QStringLiteral("Level 1 Trim saved %1 tokens").arg(savedTokens));
-    
-    totalTokens = 0;
-    for (const Message& message : messages) {
-        totalTokens += estimateTokens(message.content);
-    }
-    if (totalTokens <= compressionThreshold) {
-        LOG_INFO(QStringLiteral("Compression sufficient at Level 1"));
-        return;
-    }
-
-    // Level 2: 去重（Dedupe）- 合并重复的工具调用结果
-    savedTokens = performLevel2Dedupe(messages);
-    LOG_INFO(QStringLiteral("Level 2 Dedupe saved %1 tokens").arg(savedTokens));
-    
-    totalTokens = 0;
-    for (const Message& message : messages) {
-        totalTokens += estimateTokens(message.content);
-    }
-    if (totalTokens <= compressionThreshold) {
-        LOG_INFO(QStringLiteral("Compression sufficient at Level 2"));
-        return;
-    }
-
-    // Level 3: 折叠（Fold）- 标记不活跃消息段（保留可展开）
-    savedTokens = performLevel3Fold(messages);
-    LOG_INFO(QStringLiteral("Level 3 Fold saved %1 tokens").arg(savedTokens));
-    
-    totalTokens = 0;
-    for (const Message& message : messages) {
-        totalTokens += estimateTokens(message.content);
-    }
-    if (totalTokens <= compressionThreshold) {
-        LOG_INFO(QStringLiteral("Compression sufficient at Level 3"));
-        return;
-    }
-
-    // Level 4: 摘要（Summarize）- 最后手段，语义摘要
-    LOG_INFO(QStringLiteral("Compression insufficient, performing Level 4 Summarize"));
-    performLevel4Summarize(messages);
+    applyMicroCompact(messages);
 }
 
-int ReactAgentCore::performLevel1Trim(MessageList& messages) const {
-    int savedTokens = 0;
-    constexpr int MAX_TOOL_OUTPUT_LENGTH = 500;  // 工具输出最多保留 500 字符
-
-    for (int i = 0; i < messages.size(); ++i) {
-        Message& msg = messages[i];
-        
-        // 只处理工具消息
-        if (msg.role != MessageRole::Tool) {
-            continue;
-        }
-
-        // 如果是旧消息（前 3 个之外）且内容很长
-        if (i >= constants::MEMORY_KEEP_FIRST && msg.content.length() > MAX_TOOL_OUTPUT_LENGTH) {
-            const int originalLength = msg.content.length();
-            msg.content = msg.content.left(MAX_TOOL_OUTPUT_LENGTH) + 
-                         QStringLiteral("\n...[输出已截断]");
-            savedTokens += estimateTokens(msg.content.mid(MAX_TOOL_OUTPUT_LENGTH, 
-                                                          originalLength - MAX_TOOL_OUTPUT_LENGTH));
-        }
+bool ReactAgentCore::protectLatestToolBatch(const MessageList& messages, QSet<int>* protectedIndexes) const {
+    if (!protectedIndexes) {
+        return false;
     }
+    protectedIndexes->clear();
 
-    return savedTokens;
-}
-
-int ReactAgentCore::performLevel2Dedupe(MessageList& messages) const {
-    int savedTokens = 0;
-    QMap<QString, int> toolCallSignatures;  // 签名 -> 首次出现索引
-
-    for (int i = 0; i < messages.size(); ++i) {
-        const Message& msg = messages[i];
-        
-        // 只处理工具消息
-        if (msg.role != MessageRole::Tool) {
-            continue;
-        }
-
-        // 生成签名：工具名 + 内容摘要
-        QString signature = QString("%1:%2")
-            .arg(msg.name, msg.content.left(100).simplified());
-
-        if (toolCallSignatures.contains(signature)) {
-            // 发现重复，记录需删除
-            savedTokens += estimateTokens(msg.content);
-            toolCallSignatures[signature] = i;  // 更新为最新位置
-        } else {
-            toolCallSignatures[signature] = i;
-        }
-    }
-
-    // 反向删除重复项（避免索引失效）
-    QList<int> indicesToRemove;
-    for (auto it = toolCallSignatures.begin(); it != toolCallSignatures.end(); ++it) {
-        // 如果同一签名出现多次，保留最后一次
-        int firstIndex = it.value();
-        for (int i = firstIndex - 1; i >= 0; --i) {
-            if (messages[i].role == MessageRole::Tool && 
-                messages[i].name == messages[firstIndex].name) {
-                indicesToRemove.append(i);
+    int lastAssistantToolCallIndex = -1;
+    QSet<QString> expectedToolIds;
+    for (int i = messages.size() - 1; i >= 0; --i) {
+        const Message& message = messages.at(i);
+        if (message.role == MessageRole::Assistant && !message.toolCalls.isEmpty()) {
+            lastAssistantToolCallIndex = i;
+            for (const ToolCallData& call : message.toolCalls) {
+                const QString id = call.id.trimmed();
+                if (!id.isEmpty()) {
+                    expectedToolIds.insert(id);
+                }
             }
+            break;
         }
     }
 
-    std::sort(indicesToRemove.begin(), indicesToRemove.end(), std::greater<int>());
-    for (int idx : indicesToRemove) {
-        messages.removeAt(idx);
+    if (lastAssistantToolCallIndex < 0) {
+        return false;
     }
 
-    return savedTokens;
-}
-
-int ReactAgentCore::performLevel3Fold(MessageList& messages) const {
-    int savedTokens = 0;
-    constexpr int INACTIVE_THRESHOLD = 5;  // 5 轮未活跃
-
-    // 标记不活跃段落（简化实现：折叠中间的连续消息）
-    const int keepFirst = constants::MEMORY_KEEP_FIRST;
-    const int keepLast = constants::MEMORY_KEEP_LAST;
-    const int middleStart = keepFirst;
-    const int middleEnd = qMax(middleStart, messages.size() - keepLast);
-
-    if (middleEnd <= middleStart) {
-        return 0;
-    }
-
-    // 统计中间段 token
-    QString foldedContent;
-    for (int i = middleStart; i < middleEnd; ++i) {
-        savedTokens += estimateTokens(messages[i].content);
-        
-        // 生成折叠摘要（只保留角色和前 50 字符）
-        QString roleLabel;
-        switch (messages[i].role) {
-            case MessageRole::User: roleLabel = QStringLiteral("User"); break;
-            case MessageRole::Assistant: roleLabel = QStringLiteral("Assistant"); break;
-            case MessageRole::Tool: roleLabel = QStringLiteral("Tool"); break;
-            default: roleLabel = QStringLiteral("System"); break;
+    protectedIndexes->insert(lastAssistantToolCallIndex);
+    for (int i = lastAssistantToolCallIndex + 1; i < messages.size(); ++i) {
+        const Message& message = messages.at(i);
+        if (message.role != MessageRole::Tool) {
+            continue;
         }
-        
-        foldedContent += QString("%1: %2\n")
-            .arg(roleLabel, messages[i].content.left(50).simplified());
+        if (expectedToolIds.isEmpty() || expectedToolIds.contains(message.toolCallId.trimmed())) {
+            protectedIndexes->insert(i);
+        }
     }
-
-    // 替换中间段为折叠标记
-    MessageList folded;
-    for (int i = 0; i < keepFirst; ++i) {
-        folded.append(messages[i]);
-    }
-
-    folded.append(Message(MessageRole::System, 
-        QStringLiteral("[已折叠 %1 条历史消息]\n%2")
-            .arg(middleEnd - middleStart)
-            .arg(foldedContent)));
-
-    for (int i = middleEnd; i < messages.size(); ++i) {
-        folded.append(messages[i]);
-    }
-
-    messages = folded;
-    return savedTokens;
+    return !protectedIndexes->isEmpty();
 }
 
-void ReactAgentCore::performLevel4Summarize(MessageList& messages) const {
-    // 这是最昂贵的压缩方式，需要调用 LLM 做摘要
-    // 简化实现：直接使用现有的压缩摘要功能
-    const int keepFirst = qMin(constants::MEMORY_KEEP_FIRST, messages.size());
-    const int keepLast = qMin(constants::MEMORY_KEEP_LAST, qMax(0, messages.size() - keepFirst));
-    const int middleStart = keepFirst;
-    const int middleEnd = messages.size() - keepLast;
-    
-    if (middleEnd <= middleStart) {
-        return;
+QString ReactAgentCore::buildToolPlaceholder(const Message& toolMessage) const {
+    QString toolName = toolMessage.name.trimmed();
+    if (toolName.isEmpty()) {
+        toolName = QStringLiteral("tool");
+    }
+    QString head = toolMessage.content.simplified();
+    if (head.size() > constants::MICRO_COMPACT_TOOL_HEAD_CHARS) {
+        head = head.left(constants::MICRO_COMPACT_TOOL_HEAD_CHARS) + QStringLiteral("...");
+    }
+    return QStringLiteral("[旧工具结果已折叠：%1。摘要：%2]")
+        .arg(toolName, head);
+}
+
+bool ReactAgentCore::applyMicroCompact(MessageList& messages) const {
+    if (messages.isEmpty()) {
+        return false;
     }
 
-    MessageList compressed;
-    for (int i = 0; i < keepFirst; ++i) {
-        compressed.append(messages.at(i));
+    QVector<int> toolIndexes;
+    for (int i = 0; i < messages.size(); ++i) {
+        if (messages.at(i).role == MessageRole::Tool) {
+            toolIndexes.append(i);
+        }
+    }
+    if (toolIndexes.size() <= constants::MICRO_COMPACT_KEEP_TOOL_RESULTS) {
+        return false;
     }
 
-    const QString summary = buildCompressedSummary(messages, middleStart, middleEnd);
-    compressed.append(Message(
-        MessageRole::System,
-        QStringLiteral("[上下文语义摘要]\n%1").arg(summary)
-    ));
+    QSet<int> protectedIndexes;
+    protectLatestToolBatch(messages, &protectedIndexes);
 
-    for (int i = middleEnd; i < messages.size(); ++i) {
-        compressed.append(messages.at(i));
+    QSet<int> keepIndexes = protectedIndexes;
+    int kept = 0;
+    for (int i = toolIndexes.size() - 1; i >= 0 && kept < constants::MICRO_COMPACT_KEEP_TOOL_RESULTS; --i) {
+        const int index = toolIndexes.at(i);
+        if (keepIndexes.contains(index)) {
+            continue;
+        }
+        keepIndexes.insert(index);
+        ++kept;
     }
 
-    messages = compressed;
-    LOG_INFO(QStringLiteral("Level 4 Summarize completed, reduced to %1 messages").arg(messages.size()));
+    bool changed = false;
+    for (int index : toolIndexes) {
+        if (keepIndexes.contains(index)) {
+            continue;
+        }
+        Message& toolMessage = messages[index];
+        const QString placeholder = buildToolPlaceholder(toolMessage);
+        if (toolMessage.content != placeholder) {
+            toolMessage.content = placeholder;
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 int ReactAgentCore::estimateTokens(const QString& text) const {
@@ -1319,33 +2133,237 @@ int ReactAgentCore::estimateTokens(const QString& text) const {
     return qMax(1, hanChars + latinTokens + otherTokens);
 }
 
-QString ReactAgentCore::buildCompressedSummary(const MessageList& messages, int start, int end) const {
+QString ReactAgentCore::archiveMessagesBeforeCompact() const {
+    QDir dir(compactArchiveDirPath(m_sessionId));
+    if (!dir.exists()) {
+        dir.mkpath(QStringLiteral("."));
+    }
+
+    const QString timestamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
+    const QString filePath = dir.filePath(QStringLiteral("compact_%1_%2.json")
+        .arg(timestamp)
+        .arg(m_compactState.compactCount + 1));
+
+    QJsonArray messagesArray;
+    for (const Message& message : m_messages) {
+        messagesArray.append(message.toJson());
+    }
+
+    QJsonObject root;
+    root["created_at"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    root["provider_model"] = m_providerConfig.model;
+    root["messages"] = messagesArray;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        LOG_WARN(QStringLiteral("Failed to archive compact source messages: %1").arg(file.errorString()));
+        return QString();
+    }
+
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    file.close();
+    return QDir::toNativeSeparators(filePath);
+}
+
+QString ReactAgentCore::buildCompactSummaryRecentFilesSuffix() const {
+    if (m_compactState.recentFiles.isEmpty()) {
+        return QStringLiteral("\nRecentFiles: []");
+    }
+    return QStringLiteral("\nRecentFiles:\n- %1").arg(m_compactState.recentFiles.join(QStringLiteral("\n- ")));
+}
+
+QString ReactAgentCore::buildFullCompactPrompt(const MessageList& messages, const QString& focus) const {
     QStringList lines;
-    lines.append(QStringLiteral("以下内容来自历史中段，已压缩为摘要："));
+    lines.append(QStringLiteral("请将下面整段对话压缩成结构化摘要。"));
+    lines.append(QStringLiteral("必须保留以下五部分，并使用这五个中文标题："));
+    lines.append(QStringLiteral("1. 当前目标"));
+    lines.append(QStringLiteral("2. 重要发现与决策"));
+    lines.append(QStringLiteral("3. 读过和修改过的文件"));
+    lines.append(QStringLiteral("4. 剩余工作"));
+    lines.append(QStringLiteral("5. 用户约束"));
+    lines.append(QStringLiteral("要求："));
+    lines.append(QStringLiteral("- 摘要要足够让后续模型无缝继续工作。"));
+    lines.append(QStringLiteral("- 不要输出无关寒暄。"));
+    lines.append(QStringLiteral("- 如果 focus 非空，优先保留与该 focus 相关的上下文。"));
+    lines.append(QStringLiteral("- 末尾附加 RecentFiles 列表。"));
+    if (!focus.trimmed().isEmpty()) {
+        lines.append(QStringLiteral("Focus: %1").arg(focus.trimmed()));
+    }
+    lines.append(QStringLiteral("\n对话如下："));
 
-    for (int i = start; i < end; ++i) {
-        const Message& message = messages.at(i);
-        QString roleLabel;
-        switch (message.role) {
-            case MessageRole::User: roleLabel = QStringLiteral("User"); break;
-            case MessageRole::Assistant: roleLabel = QStringLiteral("Assistant"); break;
-            case MessageRole::System: roleLabel = QStringLiteral("System"); break;
-            case MessageRole::Tool: roleLabel = QStringLiteral("Tool"); break;
+    for (const Message& message : messages) {
+        QString content = message.content;
+        if (message.role == MessageRole::Tool && content.size() > 1200) {
+            content = content.left(1200) + QStringLiteral("\n...[tool output truncated for compact prompt]");
         }
+        lines.append(QStringLiteral("[%1]\n%2")
+            .arg(messageRoleLabel(message.role), content));
+    }
 
-        QString snippet = message.content.simplified();
-        if (snippet.length() > 120) {
-            snippet = snippet.left(120) + QStringLiteral("...");
-        }
-        lines.append(QStringLiteral("- %1: %2").arg(roleLabel, snippet));
+    lines.append(buildCompactSummaryRecentFilesSuffix());
+    return lines.join(QStringLiteral("\n\n"));
+}
 
-        if (lines.size() >= 20) {
-            lines.append(QStringLiteral("- ..."));
-            break;
+void ReactAgentCore::replaceMessagesWithCompactSummary(const QString& summary,
+                                                       const MessageList& preservedTail,
+                                                       const QString& archivePath,
+                                                       const QString& trigger,
+                                                       const QString& focus) {
+    Message summaryMessage(
+        MessageRole::System,
+        QStringLiteral("[Compact Summary]\n%1%2")
+            .arg(summary.trimmed(), buildCompactSummaryRecentFilesSuffix()));
+
+    MessageList compacted;
+    compacted.append(summaryMessage);
+    compacted.append(preservedTail);
+    m_messages = compacted;
+
+    CompactRecord record;
+    record.index = m_compactState.compactCount + 1;
+    record.trigger = trigger;
+    record.focus = focus;
+    record.archivePath = archivePath;
+    record.summary = summary.trimmed();
+    record.recentFiles = m_compactState.recentFiles;
+    record.createdAt = QDateTime::currentDateTimeUtc();
+
+    m_compactState.compactCount = record.index;
+    m_compactState.lastSummary = record.summary;
+    m_compactState.lastArchivePath = archivePath;
+    m_compactState.history.append(record);
+    while (m_compactState.history.size() > 20) {
+        m_compactState.history.removeFirst();
+    }
+    saveCompactState();
+}
+
+void ReactAgentCore::recordRecentFile(const QString& path) {
+    const QString normalized = QDir::toNativeSeparators(path.trimmed());
+    if (normalized.isEmpty()) {
+        return;
+    }
+    m_compactState.recentFiles.removeAll(normalized);
+    m_compactState.recentFiles.append(normalized);
+    while (m_compactState.recentFiles.size() > constants::COMPACT_RECENT_FILES_LIMIT) {
+        m_compactState.recentFiles.removeFirst();
+    }
+    saveCompactState();
+}
+
+void ReactAgentCore::loadCompactState() {
+    QFile file(compactStateFilePath(m_sessionId));
+    if (!file.exists()) {
+        return;
+    }
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return;
+    }
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
+    file.close();
+    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+    m_compactState = CompactState::fromJson(doc.object());
+}
+
+void ReactAgentCore::saveCompactState() const {
+    QDir dir(compactStateRootPath(m_sessionId));
+    if (!dir.exists()) {
+        dir.mkpath(QStringLiteral("."));
+    }
+    QFile file(compactStateFilePath(m_sessionId));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        return;
+    }
+    file.write(QJsonDocument(m_compactState.toJson()).toJson(QJsonDocument::Indented));
+    file.close();
+}
+
+bool ReactAgentCore::performFullCompact(QString trigger, const QString& focus) {
+    if (!m_provider) {
+        return false;
+    }
+
+    const QString archivePath = archiveMessagesBeforeCompact();
+    const MessageList sourceMessages = m_messages;
+    QSet<int> protectedIndexes;
+    protectLatestToolBatch(sourceMessages, &protectedIndexes);
+
+    MessageList summarySource;
+    MessageList preservedTail;
+    for (int i = 0; i < sourceMessages.size(); ++i) {
+        if (protectedIndexes.contains(i)) {
+            preservedTail.append(sourceMessages.at(i));
+        } else {
+            summarySource.append(sourceMessages.at(i));
         }
     }
 
-    return lines.join('\n');
+    const QString prompt = buildFullCompactPrompt(summarySource, focus);
+
+    MessageList summaryMessages;
+    summaryMessages.append(Message(MessageRole::User, prompt));
+
+    ChatOptions options;
+    options.model = m_providerConfig.model;
+    options.temperature = 0.2;
+    options.maxTokens = constants::COMPACT_SUMMARY_MAX_TOKENS;
+    options.stream = false;
+
+    QString summary;
+    QString errorText;
+    QEventLoop loop;
+
+    QPointer<ILLMProvider> provider(m_provider);
+    auto startCompactRequest = [this, provider, summaryMessages, options, &summary, &errorText, &loop]() {
+        if (!provider) {
+            errorText = QStringLiteral("Provider unavailable during compact");
+            loop.quit();
+            return;
+        }
+
+        provider->chat(summaryMessages, options,
+            [this, &summary, &loop](const QString& response) {
+                auto finish = [&summary, &loop, response]() {
+                    summary = response.trimmed();
+                    loop.quit();
+                };
+                if (this->thread() == QThread::currentThread()) {
+                    finish();
+                } else {
+                    QMetaObject::invokeMethod(this, finish, Qt::QueuedConnection);
+                }
+            },
+            [this, &errorText, &loop](const QString& error) {
+                auto fail = [&errorText, &loop, error]() {
+                    errorText = error;
+                    loop.quit();
+                };
+                if (this->thread() == QThread::currentThread()) {
+                    fail();
+                } else {
+                    QMetaObject::invokeMethod(this, fail, Qt::QueuedConnection);
+                }
+            });
+    };
+
+    if (provider->thread() == QThread::currentThread()) {
+        startCompactRequest();
+    } else {
+        QMetaObject::invokeMethod(provider, startCompactRequest, Qt::QueuedConnection);
+    }
+    loop.exec();
+
+    if (summary.isEmpty()) {
+        LOG_WARN(QStringLiteral("Full compact summary failed: %1").arg(errorText));
+        return false;
+    }
+
+    replaceMessagesWithCompactSummary(summary, preservedTail, archivePath, trigger, focus);
+    emit conversationUpdated(m_messages);
+    return true;
 }
 
 // ============================================================================
@@ -1399,31 +2417,38 @@ void ReactAgentCore::handleContinueReason(ContinueReason reason) {
             
         case ContinueReason::ContextOverflow:
             LOG_WARN(QStringLiteral("ReactAgentCore context overflow detected, compressing..."));
-            // 自动压缩上下文；若已无法继续压缩到阈值内，则直接结束，避免重复递归压缩。
             {
                 const int threshold = contextCompressionThreshold(m_providerConfig);
                 const int beforeTokens = estimateContextTokens();
-                compressMessagesForContext(m_messages);
-                const int afterTokens = estimateContextTokens();
-                m_lastContextTokens = afterTokens;
+                const bool microChanged = applyMicroCompact(m_messages);
+                const int afterMicroTokens = estimateContextTokens();
+                const bool enoughAfterMicro = afterMicroTokens <= threshold;
 
-                if (afterTokens >= beforeTokens || afterTokens > threshold) {
-                    LOG_WARN(QStringLiteral("ReactAgentCore compression plateaued: before=%1, after=%2, threshold=%3")
-                                 .arg(beforeTokens)
-                                 .arg(afterTokens)
-                                 .arg(threshold));
-                    appendRecoveryMessage(QStringLiteral("[上下文过长，已压缩到极限，请清空部分历史后重试。]"));
-                    emit conversationUpdated(m_messages);
-                    finalizeResponse(m_currentContent.isEmpty()
-                        ? QStringLiteral("上下文过长，已压缩到极限，请清空部分历史后重试。")
-                        : m_currentContent);
-                    break;
+                if (!enoughAfterMicro) {
+                    const bool fullCompacted = performFullCompact(QStringLiteral("auto"));
+                    const int afterFullTokens = estimateContextTokens();
+                    m_lastContextTokens = afterFullTokens;
+                    if (!fullCompacted || afterFullTokens >= beforeTokens || afterFullTokens > threshold) {
+                        LOG_WARN(QStringLiteral("ReactAgentCore compact plateaued: before=%1 after=%2 threshold=%3")
+                                     .arg(beforeTokens)
+                                     .arg(afterFullTokens)
+                                     .arg(threshold));
+                        appendRecoveryMessage(QStringLiteral("[上下文过长，已压缩到极限，请清空部分历史后重试。]"));
+                        emit conversationUpdated(m_messages);
+                        finalizeResponse(m_currentContent.isEmpty()
+                            ? QStringLiteral("上下文过长，已压缩到极限，请清空部分历史后重试。")
+                            : m_currentContent);
+                        break;
+                    }
+                } else {
+                    m_lastContextTokens = afterMicroTokens;
                 }
 
-                appendRecoveryMessage(QStringLiteral("[系统自动压缩上下文，继续处理...]"));
-                emit conversationUpdated(m_messages);
+                if (microChanged || m_lastContextTokens < beforeTokens) {
+                    appendRecoveryMessage(QStringLiteral("[系统已压缩上下文，继续处理...]"));
+                    emit conversationUpdated(m_messages);
+                }
             }
-            // 继续下一轮迭代
             processIteration();
             break;
             
@@ -1432,7 +2457,7 @@ void ReactAgentCore::handleContinueReason(ContinueReason reason) {
             if (canRetryAfterError()) {
                 m_hadToolFailure = false;  // 重置标志
                 m_retryCount++;
-                appendRecoveryMessage(QStringLiteral("工具执行失败，尝试其他方法..."));
+                appendRecoveryMessage(QStringLiteral("工具执行失败。不要用完全相同的工具参数盲重试；请更换参数、改用别的工具，或基于已有结果直接回答。"));
                 emit conversationUpdated(m_messages);
                 // 继续下一轮迭代，让模型尝试其他方案
                 processIteration();
@@ -1475,6 +2500,8 @@ bool ReactAgentCore::canRetryAfterError() const {
 
 void ReactAgentCore::appendRecoveryMessage(const QString& message) {
     Message sysMsg(MessageRole::System, message);
+    sysMsg.metadata[QStringLiteral("internal")] = true;
+    sysMsg.metadata[QStringLiteral("ui_hidden")] = true;
     m_messages.append(sysMsg);
     if (m_memory) {
         m_memory->addMessage(sysMsg);

@@ -14,8 +14,19 @@ QJsonObject Message::toJson() const {
         case MessageRole::Tool: obj["role"] = "tool"; break;
     }
     
+    const bool needsNullableContent =
+        role == MessageRole::Assistant
+        && !toolCalls.isEmpty()
+        && content.isEmpty();
     if (!content.isEmpty()) {
         obj["content"] = content;
+    } else if (needsNullableContent) {
+        // DeepSeek/OpenAI-compatible tool-call messages may require an explicit nullable content field.
+        obj["content"] = QJsonValue(QJsonValue::Null);
+    }
+
+    if (!reasoningContent.isEmpty()) {
+        obj["reasoning_content"] = reasoningContent;
     }
     
     if (!name.isEmpty()) {
@@ -40,6 +51,10 @@ QJsonObject Message::toJson() const {
         }
         obj["tool_calls"] = callsArray;
     }
+
+    if (!metadata.isEmpty()) {
+        obj["metadata"] = metadata;
+    }
     
     return obj;
 }
@@ -53,9 +68,11 @@ Message Message::fromJson(const QJsonObject& obj) {
     else msg.role = MessageRole::Tool;
     
     msg.content = obj["content"].toString();
+    msg.reasoningContent = obj["reasoning_content"].toString();
     msg.name = obj["name"].toString();
     msg.toolCallId = obj["tool_call_id"].toString();
     msg.timestamp = QDateTime::fromString(obj["timestamp"].toString());
+    msg.metadata = obj["metadata"].toObject();
     
     if (obj.contains("tool_calls")) {
         QJsonArray callsArray = obj["tool_calls"].toArray();
@@ -72,6 +89,73 @@ Message Message::fromJson(const QJsonObject& obj) {
     }
     
     return msg;
+}
+
+QJsonObject CompactRecord::toJson() const {
+    QJsonObject obj;
+    obj["index"] = index;
+    obj["trigger"] = trigger;
+    obj["focus"] = focus;
+    obj["archive_path"] = archivePath;
+    obj["summary"] = summary;
+    obj["created_at"] = createdAt.toString(Qt::ISODate);
+    QJsonArray files;
+    for (const QString& file : recentFiles) {
+        files.append(file);
+    }
+    obj["recent_files"] = files;
+    return obj;
+}
+
+CompactRecord CompactRecord::fromJson(const QJsonObject& obj) {
+    CompactRecord record;
+    record.index = obj["index"].toInt();
+    record.trigger = obj["trigger"].toString();
+    record.focus = obj["focus"].toString();
+    record.archivePath = obj["archive_path"].toString();
+    record.summary = obj["summary"].toString();
+    record.createdAt = QDateTime::fromString(obj["created_at"].toString(), Qt::ISODate);
+    const QJsonArray files = obj["recent_files"].toArray();
+    for (const QJsonValue& value : files) {
+        record.recentFiles.append(value.toString());
+    }
+    return record;
+}
+
+QJsonObject CompactState::toJson() const {
+    QJsonObject obj;
+    obj["compact_count"] = compactCount;
+    obj["last_summary"] = lastSummary;
+    obj["last_archive_path"] = lastArchivePath;
+    QJsonArray files;
+    for (const QString& file : recentFiles) {
+        files.append(file);
+    }
+    obj["recent_files"] = files;
+    QJsonArray records;
+    for (const CompactRecord& record : history) {
+        records.append(record.toJson());
+    }
+    obj["history"] = records;
+    return obj;
+}
+
+CompactState CompactState::fromJson(const QJsonObject& obj) {
+    CompactState state;
+    state.compactCount = obj["compact_count"].toInt();
+    state.lastSummary = obj["last_summary"].toString();
+    state.lastArchivePath = obj["last_archive_path"].toString();
+    const QJsonArray files = obj["recent_files"].toArray();
+    for (const QJsonValue& value : files) {
+        state.recentFiles.append(value.toString());
+    }
+    const QJsonArray records = obj["history"].toArray();
+    for (const QJsonValue& value : records) {
+        if (value.isObject()) {
+            state.history.append(CompactRecord::fromJson(value.toObject()));
+        }
+    }
+    return state;
 }
 
 QJsonObject ResponseFormat::toJson() const {

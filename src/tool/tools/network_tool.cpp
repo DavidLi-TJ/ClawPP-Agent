@@ -5,6 +5,11 @@
 #include <QTimer>
 #include <QRegularExpression>
 #include <QUrl>
+#include <QUrlQuery>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSet>
 
 namespace {
 
@@ -42,6 +47,20 @@ void setBrowserHeaders(QNetworkRequest* request) {
     request->setRawHeader("Cache-Control", "no-cache");
 }
 
+void setDefaultApiHeaders(QNetworkRequest* request) {
+    if (!request) {
+        return;
+    }
+
+    request->setRawHeader("User-Agent", "ClawPP/1.0");
+
+    const QUrl url = request->url();
+    if (url.host().compare(QStringLiteral("api.github.com"), Qt::CaseInsensitive) == 0) {
+        request->setRawHeader("Accept", "application/vnd.github+json");
+        request->setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    }
+}
+
 QString cleanHtmlPreview(const QByteArray& body) {
     QString text = QString::fromUtf8(body.left(4096));
     text.remove(QRegularExpression(QStringLiteral("<script[^>]*>.*?</script>"),
@@ -63,6 +82,186 @@ QString readerUrlFor(const QString& url) {
     return QStringLiteral("https://r.jina.ai/%1").arg(url);
 }
 
+QString webSearchBaseUrl() {
+    const QByteArray fromEnv = qgetenv("CLAWPP_WEB_SEARCH_BASE_URL");
+    if (!fromEnv.trimmed().isEmpty()) {
+        return QString::fromUtf8(fromEnv).trimmed();
+    }
+    return QStringLiteral("https://duckduckgo.com/html/");
+}
+
+QString stripHtml(QString text) {
+    text.remove(QRegularExpression(QStringLiteral("<script[^>]*>.*?</script>"),
+                                   QRegularExpression::CaseInsensitiveOption |
+                                   QRegularExpression::DotMatchesEverythingOption));
+    text.remove(QRegularExpression(QStringLiteral("<style[^>]*>.*?</style>"),
+                                   QRegularExpression::CaseInsensitiveOption |
+                                   QRegularExpression::DotMatchesEverythingOption));
+    text.remove(QRegularExpression(QStringLiteral("<[^>]+>")));
+    text.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    text.replace(QStringLiteral("&quot;"), QStringLiteral("\""));
+    text.replace(QStringLiteral("&#39;"), QStringLiteral("'"));
+    text.replace(QStringLiteral("&lt;"), QStringLiteral("<"));
+    text.replace(QStringLiteral("&gt;"), QStringLiteral(">"));
+    text.replace(QRegularExpression(QStringLiteral("\\s+")), QStringLiteral(" "));
+    return text.trimmed();
+}
+
+QString decodeSearchResultUrl(QString rawUrl) {
+    rawUrl = rawUrl.trimmed();
+    if (rawUrl.startsWith(QStringLiteral("//"))) {
+        rawUrl.prepend(QStringLiteral("https:"));
+    }
+    if (rawUrl.startsWith(QStringLiteral("/"))) {
+        rawUrl.prepend(QStringLiteral("https://duckduckgo.com"));
+    }
+
+    QUrl url(rawUrl);
+    if (!url.isValid()) {
+        return QString();
+    }
+
+    const QString host = url.host().toLower();
+    if (host.contains(QStringLiteral("duckduckgo.com"))) {
+        QUrlQuery query(url);
+        const QString uddg = query.queryItemValue(QStringLiteral("uddg"));
+        if (!uddg.isEmpty()) {
+            const QUrl decoded(uddg);
+            if (decoded.isValid() && !decoded.scheme().isEmpty() && !decoded.host().isEmpty()) {
+                return decoded.toString();
+            }
+        }
+    }
+
+    return url.toString();
+}
+
+bool isSearchEngineInternalUrl(const QString& rawUrl) {
+    const QUrl url(rawUrl);
+    if (!url.isValid()) {
+        return true;
+    }
+
+    const QString host = url.host().toLower();
+    const QString path = url.path().toLower();
+    if (host.contains(QStringLiteral("duckduckgo.com"))) {
+        return path.startsWith(QStringLiteral("/html"))
+            || path.startsWith(QStringLiteral("/lite"))
+            || path.startsWith(QStringLiteral("/y.js"))
+            || path.startsWith(QStringLiteral("/?q="))
+            || path.startsWith(QStringLiteral("/about"));
+    }
+    if (host.contains(QStringLiteral("bing.com")) || host.contains(QStringLiteral("baidu.com"))) {
+        return path.startsWith(QStringLiteral("/search")) || path == QStringLiteral("/");
+    }
+    return false;
+}
+
+void appendSearchResult(QJsonArray* results,
+                        QSet<QString>* seenUrls,
+                        const QString& title,
+                        const QString& rawUrl,
+                        const QString& snippet,
+                        int maxResults) {
+    if (!results || !seenUrls || results->size() >= maxResults) {
+        return;
+    }
+
+    const QString url = decodeSearchResultUrl(rawUrl);
+    if (url.isEmpty() || seenUrls->contains(url) || isSearchEngineInternalUrl(url)) {
+        return;
+    }
+
+    QString cleanTitle = stripHtml(title);
+    QString cleanSnippet = stripHtml(snippet);
+    if (cleanTitle.isEmpty()) {
+        cleanTitle = url;
+    }
+
+    QJsonObject item;
+    item.insert(QStringLiteral("title"), cleanTitle);
+    item.insert(QStringLiteral("url"), url);
+    item.insert(QStringLiteral("snippet"), cleanSnippet);
+    results->append(item);
+    seenUrls->insert(url);
+}
+
+QJsonArray extractSearchResultsFromText(const QString& text, int maxResults) {
+    QJsonArray results;
+    QSet<QString> seenUrls;
+
+    const QString normalized = text;
+
+    const QRegularExpression duckResultRe(
+        QStringLiteral("<a[^>]*class=\\\"[^\\\"]*(?:result__a|result-link)[^\\\"]*\\\"[^>]*href=\\\"([^\\\"]+)\\\"[^>]*>([\\s\\S]*?)</a>"),
+        QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator htmlIt = duckResultRe.globalMatch(normalized);
+    while (htmlIt.hasNext() && results.size() < maxResults) {
+        const QRegularExpressionMatch m = htmlIt.next();
+        const QString rawUrl = m.captured(1).trimmed();
+        const QString title = m.captured(2).trimmed();
+
+        QString snippet;
+        const int snippetStart = m.capturedEnd();
+        if (snippetStart >= 0) {
+            const QString tail = normalized.mid(snippetStart, 800);
+            const QRegularExpression snippetRe(
+                QStringLiteral(R"((?:result__snippet|snippet)[^>]*>([\s\S]*?)</[^>]+>)"),
+                QRegularExpression::CaseInsensitiveOption);
+            const QRegularExpressionMatch snippetMatch = snippetRe.match(tail);
+            if (snippetMatch.hasMatch()) {
+                snippet = snippetMatch.captured(1).trimmed();
+            }
+        }
+
+        appendSearchResult(&results, &seenUrls, title, rawUrl, snippet, maxResults);
+    }
+
+    if (!results.isEmpty()) {
+        return results;
+    }
+
+    const QRegularExpression markdownLinkRe(
+        QStringLiteral(R"(\[([^\]]+)\]\((https?://[^)\s]+)\))"),
+        QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator it = markdownLinkRe.globalMatch(normalized);
+    while (it.hasNext() && results.size() < maxResults) {
+        const QRegularExpressionMatch m = it.next();
+        appendSearchResult(&results, &seenUrls, m.captured(1), m.captured(2), QString(), maxResults);
+    }
+
+    if (!results.isEmpty()) {
+        return results;
+    }
+
+    const QStringList lines = normalized.split('\n');
+    for (int i = 0; i < lines.size() && results.size() < maxResults; ++i) {
+        const QString line = lines.at(i).trimmed();
+        const QRegularExpression urlRe(QStringLiteral(R"(https?://\S+)"), QRegularExpression::CaseInsensitiveOption);
+        const QRegularExpressionMatch urlMatch = urlRe.match(line);
+        if (!urlMatch.hasMatch()) {
+            continue;
+        }
+
+        QString title = line;
+        title.remove(urlMatch.captured(0).trimmed());
+        title = title.trimmed();
+        if (title.startsWith(QStringLiteral("-"))) {
+            title.remove(0, 1);
+            title = title.trimmed();
+        }
+
+        QString snippet;
+        if (i + 1 < lines.size()) {
+            snippet = lines.at(i + 1).trimmed();
+        }
+
+        appendSearchResult(&results, &seenUrls, title, urlMatch.captured(0).trimmed(), snippet, maxResults);
+    }
+
+    return results;
+}
+
 }
 
 namespace clawpp {
@@ -76,7 +275,7 @@ QString NetworkTool::name() const {
 }
 
 QString NetworkTool::description() const {
-    return "Network operations: http_get, http_post, web_fetch";
+    return "Network operations for REST APIs and web pages: web_search, http_get, http_post, web_fetch. Use web_search when the target site or exact URL is not known yet.";
 }
 
 QJsonObject NetworkTool::parameters() const {
@@ -87,7 +286,7 @@ QJsonObject NetworkTool::parameters() const {
     
     QJsonObject operation;
     operation["type"] = "string";
-    operation["enum"] = QJsonArray{"http_get", "http_post", "web_fetch"};
+    operation["enum"] = QJsonArray{"web_search", "http_get", "http_post", "web_fetch"};
     operation["description"] = "The network operation to perform";
     properties["operation"] = operation;
     
@@ -95,6 +294,11 @@ QJsonObject NetworkTool::parameters() const {
     url["type"] = "string";
     url["description"] = "The URL for the request";
     properties["url"] = url;
+
+    QJsonObject query;
+    query["type"] = "string";
+    query["description"] = "Search keywords for web_search";
+    properties["query"] = query;
     
     QJsonObject headers;
     headers["type"] = "object";
@@ -117,9 +321,15 @@ QJsonObject NetworkTool::parameters() const {
     timeout["description"] = "Timeout in milliseconds (default: 30000)";
     timeout["default"] = 30000;
     properties["timeout"] = timeout;
+
+    QJsonObject maxResults;
+    maxResults["type"] = "integer";
+    maxResults["description"] = "Maximum number of results for web_search (default: 5)";
+    maxResults["default"] = 5;
+    properties["max_results"] = maxResults;
     
     params["properties"] = properties;
-    params["required"] = QJsonArray{"operation", "url"};
+    params["required"] = QJsonArray{"operation"};
     
     return params;
 }
@@ -133,14 +343,30 @@ ToolResult NetworkTool::execute(const QJsonObject& args) {
     
     QString operation = args["operation"].toString();
     QString url = args["url"].toString().trimmed();
+    QString query = args["query"].toString().trimmed();
+    int timeoutMs = qBound(1000, args["timeout"].toInt(30000), 300000);
     
-    if (operation.isEmpty() || url.isEmpty()) {
+    if (operation.isEmpty()) {
         result.success = false;
-        result.content = "Error: operation and url are required";
+        result.content = "Error: operation is required";
         return result;
     }
-    
-    int timeoutMs = qBound(1000, args["timeout"].toInt(30000), 300000);
+
+    if (operation == "web_search") {
+        if (query.isEmpty()) {
+            result.success = false;
+            result.content = "Error: query is required for web_search";
+            return result;
+        }
+        const int maxResults = qBound(1, args["max_results"].toInt(5), 10);
+        return webSearch(query, timeoutMs, maxResults);
+    }
+
+    if (url.isEmpty()) {
+        result.success = false;
+        result.content = "Error: url is required";
+        return result;
+    }
 
     QString validationError;
     if (!validateHttpUrl(url, &validationError)) {
@@ -165,10 +391,96 @@ ToolResult NetworkTool::execute(const QJsonObject& args) {
     }
 }
 
+ToolResult NetworkTool::webSearch(const QString& query, int timeoutMs, int maxResults) {
+    ToolResult result;
+
+    QString baseUrl = webSearchBaseUrl();
+    if (baseUrl.trimmed().isEmpty()) {
+        result.success = false;
+        result.content = QStringLiteral("Web search is not configured: empty search base URL");
+        return result;
+    }
+
+    QUrl url(baseUrl);
+    if (!url.isValid()) {
+        result.success = false;
+        result.content = QStringLiteral("Web search is not configured: invalid search base URL");
+        return result;
+    }
+
+    QUrlQuery urlQuery(url);
+    urlQuery.addQueryItem(QStringLiteral("q"), query);
+    url.setQuery(urlQuery);
+
+    QNetworkRequest request{url};
+    setBrowserHeaders(&request);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                        QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QNetworkReply* reply = m_networkManager->get(request);
+    QEventLoop loop;
+    QTimer timer;
+    timer.setSingleShot(true);
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+    timer.start(timeoutMs);
+    loop.exec();
+
+    if (!timer.isActive()) {
+        reply->abort();
+        result.success = false;
+        result.content = QStringLiteral("Web search timed out after %1 ms").arg(timeoutMs);
+        result.metadata[QStringLiteral("timeout")] = true;
+        result.metadata[QStringLiteral("query")] = query;
+        reply->deleteLater();
+        return result;
+    }
+
+    timer.stop();
+    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QByteArray responseBody = reply->readAll();
+    reply->deleteLater();
+
+    if (statusCode < 200 || statusCode >= 400) {
+        result.success = false;
+        result.content = QStringLiteral("Web search failed (%1)").arg(statusCode > 0 ? QString::number(statusCode) : QStringLiteral("no-status"));
+        result.metadata[QStringLiteral("query")] = query;
+        result.metadata[QStringLiteral("status_code")] = statusCode;
+        return result;
+    }
+
+    QString text = QString::fromUtf8(responseBody).trimmed();
+    if (text.isEmpty()) {
+        result.success = false;
+        result.content = QStringLiteral("Web search returned empty content");
+        result.metadata[QStringLiteral("query")] = query;
+        return result;
+    }
+
+    const QJsonArray items = extractSearchResultsFromText(text, maxResults);
+    if (items.isEmpty()) {
+        result.success = false;
+        result.content = QStringLiteral("Web search returned no usable results");
+        result.metadata[QStringLiteral("query")] = query;
+        return result;
+    }
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("query"), query);
+    payload.insert(QStringLiteral("results"), items);
+    result.success = true;
+    result.content = QString::fromUtf8(QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    result.metadata[QStringLiteral("query")] = query;
+    result.metadata[QStringLiteral("result_count")] = items.size();
+    result.metadata[QStringLiteral("search_url")] = url.toString();
+    return result;
+}
+
 ToolResult NetworkTool::httpGet(const QString& url, const QJsonObject& headers, int timeoutMs) {
     ToolResult result;
     
     QNetworkRequest request{QUrl(url)};
+    setDefaultApiHeaders(&request);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, 
                         QNetworkRequest::NoLessSafeRedirectPolicy);
     

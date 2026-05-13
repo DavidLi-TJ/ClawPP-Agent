@@ -48,6 +48,7 @@ public:
               const ChatOptions&,
               std::function<void(const QString&)> onSuccess,
               std::function<void(const QString&)> onError) override {
+        lastMessages.clear();
         if (onError) {
             onError(QStringLiteral("chat not implemented in mock"));
         } else if (onSuccess) {
@@ -55,12 +56,13 @@ public:
         }
     }
 
-    void chatStream(const MessageList&,
+    void chatStream(const MessageList& messages,
                     const ChatOptions&,
                     StreamCallback onToken,
                     std::function<void()> onComplete,
                     ErrorCallback onError) override {
         ++streamCalls;
+        lastMessages = messages;
         tokenCallback = std::move(onToken);
         completeCallback = std::move(onComplete);
         errorCallback = std::move(onError);
@@ -100,6 +102,7 @@ public:
 
     bool abortCalled;
     int streamCalls;
+    MessageList lastMessages;
 
 private:
     StreamCallback tokenCallback;
@@ -140,6 +143,48 @@ public:
 
 private:
     QString m_name;
+};
+
+class FailingTool : public ITool {
+public:
+    explicit FailingTool(const QString& toolName, const QString& failureText, QObject* parent = nullptr)
+        : ITool(parent)
+        , m_name(toolName)
+        , m_failureText(failureText)
+        , m_calls(0) {}
+
+    QString name() const override {
+        return m_name;
+    }
+
+    QString description() const override {
+        return QStringLiteral("Failing tool for tests");
+    }
+
+    QJsonObject parameters() const override {
+        QJsonObject schema;
+        schema[QStringLiteral("type")] = QStringLiteral("object");
+        return schema;
+    }
+
+    PermissionLevel permissionLevel() const override {
+        return PermissionLevel::Moderate;
+    }
+
+    ToolResult execute(const QJsonObject&) override {
+        ++m_calls;
+        ToolResult result;
+        result.success = false;
+        result.content = m_failureText;
+        return result;
+    }
+
+    int calls() const { return m_calls; }
+
+private:
+    QString m_name;
+    QString m_failureText;
+    int m_calls;
 };
 
 class ConversationHistoryTests : public QObject {
@@ -373,11 +418,29 @@ class ReactAgentCoreTests : public QObject {
 
 private slots:
     void streamCompleteProducesFinalResponse();
+    void cumulativeStreamChunksAreDeduped();
+    void reasoningContentIsPreservedForToolContinuation();
     void stopSuppressesLateCallbacks();
     void emptyStreamErrorUsesFallbackMessage();
     void noToolFirstIterationContinuesLoop();
+    void planningPreambleWithToolsTriggersRetry();
+    void postToolEmptyIterationContinuesLoop();
     void invalidToolArgumentsBecomeToolMessage();
+    void toolResultsAreSentWithAssistantToolCallMessage();
+    void orphanToolMessagesAreFilteredBeforeProviderRequest();
+    void deterministicToolFailureBlocksSameRetry();
 };
+
+class QmlMergeTests : public QObject {
+    Q_OBJECT
+
+private slots:
+    void placeholder();
+};
+
+void QmlMergeTests::placeholder() {
+    QVERIFY(true);
+}
 
 void ReactAgentCoreTests::streamCompleteProducesFinalResponse() {
     ReactAgentCore core;
@@ -396,6 +459,73 @@ void ReactAgentCoreTests::streamCompleteProducesFinalResponse() {
     QCOMPARE(errorSpy.count(), 0);
     QCOMPARE(completedSpy.count(), 1);
     QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("abc"));
+}
+
+void ReactAgentCoreTests::cumulativeStreamChunksAreDeduped() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    QSignalSpy completedSpy(&core, &ReactAgentCore::completed);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    provider.emitChunk(QStringLiteral("我能做的事"));
+    provider.emitChunk(QStringLiteral("我能做的事涵盖以下几个方面："));
+    provider.emitComplete();
+
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("我能做的事涵盖以下几个方面："));
+}
+
+void ReactAgentCoreTests::reasoningContentIsPreservedForToolContinuation() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    DummyTool tool(QStringLiteral("dummy_tool"));
+    ToolRegistry::instance().unregisterTool(tool.name());
+    ToolRegistry::instance().registerTool(&tool);
+
+    ToolExecutor executor(&ToolRegistry::instance(), nullptr);
+    core.setExecutor(&executor);
+    QSignalSpy completedSpy(&core, &ReactAgentCore::completed);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    StreamChunk firstChunk;
+    firstChunk.reasoningContent = QStringLiteral("step-1");
+    ToolCallDelta toolCall;
+    toolCall.index = 0;
+    toolCall.id = QStringLiteral("tc-reasoning");
+    toolCall.name = QStringLiteral("dummy_tool");
+    toolCall.arguments = QStringLiteral("{}");
+    firstChunk.toolCalls.append(toolCall);
+    provider.emitChunk(firstChunk);
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 2, 1000);
+
+    bool foundAssistantToolCall = false;
+    for (const Message& message : provider.lastMessages) {
+        if (message.role == MessageRole::Assistant
+            && message.reasoningContent == QStringLiteral("step-1")
+            && message.toolCalls.size() == 1
+            && message.toolCalls.first().id == QStringLiteral("tc-reasoning")) {
+            foundAssistantToolCall = true;
+            break;
+        }
+    }
+
+    QVERIFY(foundAssistantToolCall);
+
+    provider.emitChunk(QStringLiteral("done"));
+    provider.emitComplete();
+    QTRY_COMPARE_WITH_TIMEOUT(completedSpy.count(), 1, 1000);
+
+    ToolRegistry::instance().unregisterTool(tool.name());
 }
 
 void ReactAgentCoreTests::stopSuppressesLateCallbacks() {
@@ -463,6 +593,73 @@ void ReactAgentCoreTests::noToolFirstIterationContinuesLoop() {
     QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("loop-ok"));
 }
 
+void ReactAgentCoreTests::planningPreambleWithToolsTriggersRetry() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+    core.setToolsEnabled(true);
+
+    QSignalSpy completedSpy(&core, &ReactAgentCore::completed);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    provider.emitChunk(QStringLiteral("我来帮您查询这个结果。\n首先尝试查询目标站点："));
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 2, 1000);
+    QCOMPARE(completedSpy.count(), 0);
+
+    provider.emitChunk(QStringLiteral("final-after-tool-first-retry"));
+    provider.emitComplete();
+
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("final-after-tool-first-retry"));
+}
+
+void ReactAgentCoreTests::postToolEmptyIterationContinuesLoop() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    DummyTool tool(QStringLiteral("dummy_tool"));
+    ToolRegistry::instance().unregisterTool(tool.name());
+    ToolRegistry::instance().registerTool(&tool);
+
+    ToolExecutor executor(&ToolRegistry::instance(), nullptr);
+    core.setExecutor(&executor);
+
+    QSignalSpy completedSpy(&core, &ReactAgentCore::completed);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    StreamChunk firstChunk;
+    ToolCallDelta toolCall;
+    toolCall.index = 0;
+    toolCall.id = QStringLiteral("tc-post-tool");
+    toolCall.name = QStringLiteral("dummy_tool");
+    toolCall.arguments = QStringLiteral("{}");
+    firstChunk.toolCalls.append(toolCall);
+    provider.emitChunk(firstChunk);
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 2, 1000);
+
+    // 工具执行后若模型短暂返回空内容，不应直接卡死或立刻结束；
+    // 应触发恢复提示并继续下一轮。
+    provider.emitComplete();
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 3, 1000);
+
+    provider.emitChunk(QStringLiteral("final-after-tool-recovery"));
+    provider.emitComplete();
+
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("final-after-tool-recovery"));
+
+    ToolRegistry::instance().unregisterTool(tool.name());
+}
+
 void ReactAgentCoreTests::invalidToolArgumentsBecomeToolMessage() {
     ReactAgentCore core;
     MockProvider provider;
@@ -504,6 +701,140 @@ void ReactAgentCoreTests::invalidToolArgumentsBecomeToolMessage() {
         }
     }
     QVERIFY(foundInvalidToolMessage);
+}
+
+void ReactAgentCoreTests::toolResultsAreSentWithAssistantToolCallMessage() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    DummyTool tool(QStringLiteral("dummy_tool"));
+    ToolRegistry::instance().unregisterTool(tool.name());
+    ToolRegistry::instance().registerTool(&tool);
+
+    ToolExecutor executor(&ToolRegistry::instance(), nullptr);
+    core.setExecutor(&executor);
+
+    QSignalSpy completedSpy(&core, &ReactAgentCore::completed);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    StreamChunk firstChunk;
+    ToolCallDelta toolCall;
+    toolCall.index = 0;
+    toolCall.id = QStringLiteral("tc-sequence");
+    toolCall.name = QStringLiteral("dummy_tool");
+    toolCall.arguments = QStringLiteral("{}");
+    firstChunk.toolCalls.append(toolCall);
+    provider.emitChunk(firstChunk);
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 2, 1000);
+
+    bool sawAssistantToolCall = false;
+    bool sawMatchingToolResult = false;
+    for (const Message& message : provider.lastMessages) {
+        if (!sawAssistantToolCall
+            && message.role == MessageRole::Assistant
+            && message.toolCalls.size() == 1
+            && message.toolCalls.first().id == QStringLiteral("tc-sequence")
+            && message.toolCalls.first().name == QStringLiteral("dummy_tool")) {
+            sawAssistantToolCall = true;
+            continue;
+        }
+
+        if (sawAssistantToolCall
+            && message.role == MessageRole::Tool
+            && message.toolCallId == QStringLiteral("tc-sequence")
+            && message.name == QStringLiteral("dummy_tool")) {
+            sawMatchingToolResult = true;
+            break;
+        }
+    }
+
+    QVERIFY(sawAssistantToolCall);
+    QVERIFY(sawMatchingToolResult);
+
+    provider.emitChunk(QStringLiteral("done"));
+    provider.emitComplete();
+
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(completedSpy.takeFirst().at(0).toString(), QStringLiteral("done"));
+
+    ToolRegistry::instance().unregisterTool(tool.name());
+}
+
+void ReactAgentCoreTests::orphanToolMessagesAreFilteredBeforeProviderRequest() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    MessageList history;
+    history.append(Message(MessageRole::Assistant, QStringLiteral("上一轮结束")));
+    Message orphanTool(MessageRole::Tool, QStringLiteral("orphan"));
+    orphanTool.toolCallId = QStringLiteral("missing-call-id");
+    orphanTool.name = QStringLiteral("dummy_tool");
+    history.append(orphanTool);
+    core.setContext(history);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    bool foundOrphanTool = false;
+    for (const Message& message : provider.lastMessages) {
+        if (message.role == MessageRole::Tool
+            && message.toolCallId == QStringLiteral("missing-call-id")) {
+            foundOrphanTool = true;
+            break;
+        }
+    }
+
+    QVERIFY(!foundOrphanTool);
+}
+
+void ReactAgentCoreTests::deterministicToolFailureBlocksSameRetry() {
+    ReactAgentCore core;
+    MockProvider provider;
+    core.setProvider(&provider);
+
+    FailingTool tool(QStringLiteral("failing_tool"), QStringLiteral("HTTP GET failed (404): Not Found"));
+    ToolRegistry::instance().unregisterTool(tool.name());
+    ToolRegistry::instance().registerTool(&tool);
+
+    ToolExecutor executor(&ToolRegistry::instance(), nullptr);
+    core.setExecutor(&executor);
+
+    core.run(QStringLiteral("hello"));
+    QCOMPARE(provider.streamCalls, 1);
+
+    StreamChunk firstChunk;
+    ToolCallDelta firstCall;
+    firstCall.index = 0;
+    firstCall.id = QStringLiteral("tc-fail-1");
+    firstCall.name = QStringLiteral("failing_tool");
+    firstCall.arguments = QStringLiteral("{}");
+    firstChunk.toolCalls.append(firstCall);
+    provider.emitChunk(firstChunk);
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 2, 1000);
+    QCOMPARE(tool.calls(), 1);
+
+    StreamChunk secondChunk;
+    ToolCallDelta secondCall;
+    secondCall.index = 0;
+    secondCall.id = QStringLiteral("tc-fail-2");
+    secondCall.name = QStringLiteral("failing_tool");
+    secondCall.arguments = QStringLiteral("{}");
+    secondChunk.toolCalls.append(secondCall);
+    provider.emitChunk(secondChunk);
+    provider.emitComplete();
+
+    QTRY_COMPARE_WITH_TIMEOUT(provider.streamCalls, 3, 1000);
+    QCOMPARE(tool.calls(), 1);
+
+    ToolRegistry::instance().unregisterTool(tool.name());
 }
 
 class ToolExecutorTests : public QObject {

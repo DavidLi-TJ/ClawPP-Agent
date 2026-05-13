@@ -42,6 +42,10 @@ constexpr int SUBAGENT_TIMEOUT_MS = 120000;          ///< 子代理执行超时�
 constexpr int MEMORY_TOKEN_THRESHOLD = 4000;         ///< 内存 token 阈值
 constexpr int MEMORY_KEEP_FIRST = 3;                 ///< 内存保留开头数
 constexpr int MEMORY_KEEP_LAST = 5;                  ///< 内存保留结尾数
+constexpr int COMPACT_RECENT_FILES_LIMIT = 5;        ///< compact 保留最近文件数
+constexpr int MICRO_COMPACT_KEEP_TOOL_RESULTS = 3;   ///< MicroCompact 保留最近完整工具结果条数
+constexpr int MICRO_COMPACT_TOOL_HEAD_CHARS = 80;    ///< 工具结果占位摘要头部长度
+constexpr int COMPACT_SUMMARY_MAX_TOKENS = 1400;     ///< 全量 compact 摘要 token 上限
 
 constexpr const char* SESSION_COPY_SUFFIX = "Copy"; ///< 会话复制名称后缀
 

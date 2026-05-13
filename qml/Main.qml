@@ -26,16 +26,13 @@ ApplicationWindow {
     property string settingProviderType: "openai"
     property string settingBaseUrl: ""
     property string settingModel: ""
+    property bool providerPresetSyncing: false
+    property bool providerModelSyncing: false
     property string settingTelegramToken: ""
     property string settingFeishuAppId: ""
     property string settingFeishuAppSecret: ""
     property string settingFeishuVerificationToken: ""
     property int settingFeishuPort: 8080
-    property string settingDiscordWebhookUrl: ""
-    property string settingDingTalkWebhookUrl: ""
-    property string settingWechatWebhookUrl: ""
-    property string settingQqWebhookUrl: ""
-    property string settingWecomWebhookUrl: ""
     property string settingMessageChannel: "telegram"
     property int settingChatFontSize: 13
     property real settingChatLineHeight: 1.45
@@ -706,7 +703,7 @@ ApplicationWindow {
         if (providerType === "anthropic") return ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5"]
         if (providerType === "azure_openai") return ["gpt-5.4-mini", "gpt-5.4-nano", "o4-mini"]
         if (providerType === "openai") return ["gpt-5.4-mini", "gpt-5.4", "gpt-5.3-instant", "o4-mini"]
-        if (providerType === "deepseek") return ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"]
+        if (providerType === "deepseek") return ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
         if (providerType === "zai") return ["glm-5.1", "glm-5", "glm-4.7"]
         if (providerType === "groq") return ["meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct", "deepseek-r1-distill-llama-70b"]
         if (providerType === "minimax") return ["MiniMax-M2.5", "MiniMax-M2.7", "MiniMax-M2.1"]
@@ -735,11 +732,13 @@ ApplicationWindow {
     }
 
     function rebuildProviderModelOptions(providerTypeText) {
+        providerModelSyncing = true
         providerModelOptions.clear()
         var models = providerModelSeed(providerTypeText)
         for (var i = 0; i < models.length; ++i) {
             providerModelOptions.append({ name: models[i] })
         }
+        providerModelSyncing = false
     }
 
     function findProviderPresetIndex(providerTypeText, baseUrlText) {
@@ -748,16 +747,8 @@ ApplicationWindow {
 
         for (var i = 0; i < providerPresetModel.count; ++i) {
             var row = providerPresetModel.get(i)
-            if (row.type === typeTarget) {
+            if (row.type === typeTarget && row.baseUrl === baseTarget) {
                 return i
-            }
-        }
-
-        if (baseTarget.length > 0) {
-            for (var j = 0; j < providerPresetModel.count; ++j) {
-                if (providerPresetModel.get(j).baseUrl === baseTarget) {
-                    return j
-                }
             }
         }
 
@@ -782,9 +773,12 @@ ApplicationWindow {
     function currentProviderPresetLabel() {
         if (providerUrlSelector && providerUrlSelector.currentIndex >= 0 && providerUrlSelector.currentIndex < providerPresetModel.count) {
             var row = providerPresetModel.get(providerUrlSelector.currentIndex)
-            return row && row.label ? row.label : ""
+            if (row && row.type === normalizeProviderType(settingProviderType)
+                    && row.baseUrl === String(settingBaseUrl).trim()) {
+                return row.label ? row.label : ""
+            }
         }
-        return settingProviderType + " · " + settingBaseUrl
+        return "自定义 · " + settingProviderType + " · " + settingBaseUrl
     }
 
     function currentProviderModelLabel() {
@@ -800,6 +794,7 @@ ApplicationWindow {
             return
         }
 
+        providerModelSyncing = true
         var idx = findProviderModelIndex(settingModel)
         if (idx < 0 && settingModel && settingModel.trim().length > 0) {
             providerModelOptions.append({ name: settingModel.trim() })
@@ -812,6 +807,7 @@ ApplicationWindow {
             }
         }
         providerModelSelector.currentIndex = idx
+        providerModelSyncing = false
     }
 
     function applyProviderPreset(index, useRecommendedModel) {
@@ -847,25 +843,14 @@ ApplicationWindow {
         }
 
         var matchedIdx = findProviderPresetIndex(settingProviderType, settingBaseUrl)
-        var idx = matchedIdx
-        if (idx < 0) {
-            idx = findProviderPresetIndex("openai", "")
-        }
-        if (idx < 0) {
-            idx = 0
-        }
-
-        providerUrlSelector.currentIndex = idx
+        providerPresetSyncing = true
+        providerUrlSelector.currentIndex = matchedIdx
+        providerPresetSyncing = false
         if (useRecommendedModel) {
-            applyProviderPreset(idx, true)
+            applyProviderPreset(matchedIdx, true)
             return
         }
 
-        if (matchedIdx < 0 && idx >= 0 && idx < providerPresetModel.count) {
-            var fallback = providerPresetModel.get(idx)
-            settingProviderType = fallback.type ? fallback.type : "openai"
-            settingBaseUrl = fallback.baseUrl ? fallback.baseUrl : settingBaseUrl
-        }
         rebuildProviderModelOptions(settingProviderType)
         syncProviderModelSelection()
         if (baseUrlField) {
@@ -886,12 +871,7 @@ ApplicationWindow {
             settingFeishuAppSecret = settings.feishuAppSecret ? settings.feishuAppSecret : ""
             settingFeishuVerificationToken = settings.feishuVerificationToken ? settings.feishuVerificationToken : ""
             settingFeishuPort = settings.feishuPort ? settings.feishuPort : 8080
-            settingDiscordWebhookUrl = settings.discordWebhookUrl ? settings.discordWebhookUrl : ""
-            settingDingTalkWebhookUrl = settings.dingtalkWebhookUrl ? settings.dingtalkWebhookUrl : ""
-            settingWechatWebhookUrl = settings.wechatWebhookUrl ? settings.wechatWebhookUrl : ""
-            settingQqWebhookUrl = settings.qqWebhookUrl ? settings.qqWebhookUrl : ""
-            settingWecomWebhookUrl = settings.wecomWebhookUrl ? settings.wecomWebhookUrl : ""
-            settingMessageChannel = settings.messageChannel ? settings.messageChannel : "telegram"
+            settingMessageChannel = settings.messageChannel === "feishu" ? "feishu" : "telegram"
             settingChatFontSize = settings.chatFontSize ? Math.max(11, Math.min(20, Number(settings.chatFontSize))) : 13
             settingChatLineHeight = settings.chatLineHeight ? Math.max(1.15, Math.min(2.0, Number(settings.chatLineHeight))) : 1.45
             settingPanelOpacity = settings.panelOpacity ? Math.max(0.35, Math.min(0.95, Number(settings.panelOpacity))) : 0.75
@@ -913,11 +893,6 @@ ApplicationWindow {
             if (feishuSecretField) feishuSecretField.text = settingFeishuAppSecret
             if (feishuVerifyField) feishuVerifyField.text = settingFeishuVerificationToken
             if (feishuPortField) feishuPortField.value = settingFeishuPort
-            if (discordWebhookField) discordWebhookField.text = settingDiscordWebhookUrl
-            if (dingtalkWebhookField) dingtalkWebhookField.text = settingDingTalkWebhookUrl
-            if (wechatWebhookField) wechatWebhookField.text = settingWechatWebhookUrl
-            if (qqWebhookField) qqWebhookField.text = settingQqWebhookUrl
-            if (wecomWebhookField) wecomWebhookField.text = settingWecomWebhookUrl
             if (chatFontSizeSlider) chatFontSizeSlider.value = settingChatFontSize
             if (chatLineHeightSlider) chatLineHeightSlider.value = settingChatLineHeight
             if (backgroundBlurSlider) backgroundBlurSlider.value = settingBackgroundBlurRadius
@@ -983,11 +958,6 @@ ApplicationWindow {
                 feishuAppSecret: settingFeishuAppSecret,
                 feishuVerificationToken: settingFeishuVerificationToken,
                 feishuPort: settingFeishuPort,
-                discordWebhookUrl: settingDiscordWebhookUrl,
-                dingtalkWebhookUrl: settingDingTalkWebhookUrl,
-                wechatWebhookUrl: settingWechatWebhookUrl,
-                qqWebhookUrl: settingQqWebhookUrl,
-                wecomWebhookUrl: settingWecomWebhookUrl,
                 messageChannel: settingMessageChannel,
                 chatFontSize: settingChatFontSize,
                 chatLineHeight: settingChatLineHeight,
@@ -2660,7 +2630,7 @@ ApplicationWindow {
                                     anchors.margins: 10
                                     spacing: 8
                                     clip: true
-                                    reuseItems: true
+                                    reuseItems: false
                                     cacheBuffer: 320
                                     model: backend && backend.messagesModel ? backend.messagesModel : demoMessages
 
@@ -2743,6 +2713,7 @@ ApplicationWindow {
                                     }
 
                                     onContentHeightChanged: {
+                                        chatList.forceLayout()
                                         if (root.chatAutoScrollEnabled) {
                                             root.maybeScrollChatToEnd(false)
                                         }
@@ -2767,6 +2738,7 @@ ApplicationWindow {
                                     }
 
                                     delegate: Item {
+                                        id: messageDelegate
                                         property bool userMessage: !!((typeof isUser !== "undefined" && isUser === true)
                                             || (typeof sender !== "undefined" && sender === "user"))
                                         property bool systemMessage: !!(typeof sender !== "undefined" && sender === "system")
@@ -2853,6 +2825,15 @@ ApplicationWindow {
                                             : bubbleWrap.height
                                             + ((systemMessage || toolCardMessage) ? 28 : 8)
                                             + (metaInfo.visible ? (metaInfo.implicitHeight + 6) : 0)
+
+                                        onHeightChanged: {
+                                            Qt.callLater(function() {
+                                                chatList.forceLayout()
+                                                if (root.chatAutoScrollEnabled) {
+                                                    root.maybeScrollChatToEnd(false)
+                                                }
+                                            })
+                                        }
 
                                         TextMetrics {
                                             id: bubbleWidthMetrics
@@ -3038,7 +3019,15 @@ ApplicationWindow {
 
                                                 TapHandler {
                                                     enabled: workflowLikeCard
-                                                    onTapped: toolCardExpanded = !toolCardExpanded
+                                                    onTapped: {
+                                                        toolCardExpanded = !toolCardExpanded
+                                                        Qt.callLater(function() {
+                                                            chatList.forceLayout()
+                                                            if (root.chatAutoScrollEnabled) {
+                                                                root.maybeScrollChatToEnd(false)
+                                                            }
+                                                        })
+                                                    }
                                                 }
                                             }
 
@@ -3050,10 +3039,11 @@ ApplicationWindow {
                                                 anchors.leftMargin: 11
                                                 anchors.topMargin: 11
                                                 width: parent.width - 22
+                                                clip: true
                                                 text: richMessageText
                                                 textFormat: TextEdit.RichText
                                                 color: userMessage ? "#0A3D6E" : root.textPrimary
-                                                wrapMode: TextEdit.Wrap
+                                                wrapMode: TextEdit.WrapAnywhere
                                                 font.pixelSize: root.settingChatFontSize
                                                 readOnly: true
                                                 selectByMouse: true
@@ -3061,6 +3051,12 @@ ApplicationWindow {
                                                 activeFocusOnPress: true
                                                 selectedTextColor: color
                                                 selectionColor: Qt.rgba(0/255, 102/255, 255/255, 0.18)
+
+                                                onImplicitHeightChanged: {
+                                                    Qt.callLater(function() {
+                                                        chatList.forceLayout()
+                                                    })
+                                                }
                                             }
                                             Popup {
                                                 id: messageMenu
@@ -3646,12 +3642,20 @@ ApplicationWindow {
                                             }
                                         }
                                         onActivated: {
+                                            if (root.providerPresetSyncing) {
+                                                return
+                                            }
                                             root.applyProviderPreset(currentIndex, true)
                                         }
                                         onCurrentIndexChanged: {
+                                            if (root.providerPresetSyncing) {
+                                                return
+                                            }
                                             if (currentIndex >= 0 && currentIndex < providerPresetModel.count) {
                                                 var selected = providerPresetModel.get(currentIndex)
-                                                if (selected && selected.type && selected.type !== root.settingProviderType) {
+                                                if (selected
+                                                        && ((selected.type && selected.type !== root.settingProviderType)
+                                                            || (selected.baseUrl && selected.baseUrl !== String(root.settingBaseUrl).trim()))) {
                                                     root.applyProviderPreset(currentIndex, true)
                                                 }
                                             }
@@ -3676,9 +3680,9 @@ ApplicationWindow {
                                     GlassTextField {
                                         id: baseUrlField
                                         Layout.fillWidth: true
-                                        placeholderText: "Base URL（只读）"
+                                        placeholderText: "Base URL"
                                         text: root.settingBaseUrl
-                                        readOnly: true
+                                        onTextChanged: root.settingBaseUrl = text
                                     }
 
                                     GlassComboBox {
@@ -3713,6 +3717,9 @@ ApplicationWindow {
                                             }
                                         }
                                         onCurrentIndexChanged: {
+                                            if (root.providerModelSyncing) {
+                                                return
+                                            }
                                             if (currentIndex >= 0 && currentIndex < providerModelOptions.count) {
                                                 var selectedModel = providerModelOptions.get(currentIndex)
                                                 if (selectedModel && selectedModel.name && root.settingModel !== selectedModel.name) {
@@ -3793,7 +3800,7 @@ ApplicationWindow {
                                     GlassComboBox {
                                         id: messageChannelSelector
                                         Layout.fillWidth: true
-                                        model: ["telegram", "feishu", "discord", "dingtalk", "wechat", "qq", "wecom"]
+                                        model: ["telegram", "feishu"]
                                         Component.onCompleted: {
                                             var idx = model.indexOf(root.settingMessageChannel)
                                             currentIndex = idx >= 0 ? idx : 0
@@ -3801,51 +3808,6 @@ ApplicationWindow {
                                         onActivated: {
                                             root.settingMessageChannel = model[currentIndex]
                                         }
-                                    }
-
-                                    GlassTextField {
-                                        id: discordWebhookField
-                                        Layout.fillWidth: true
-                                        visible: root.isChannelSelected("discord")
-                                        placeholderText: "Discord Webhook URL"
-                                        text: root.settingDiscordWebhookUrl
-                                        onTextChanged: root.settingDiscordWebhookUrl = text
-                                    }
-
-                                    GlassTextField {
-                                        id: dingtalkWebhookField
-                                        Layout.fillWidth: true
-                                        visible: root.isChannelSelected("dingtalk")
-                                        placeholderText: "DingTalk Webhook URL"
-                                        text: root.settingDingTalkWebhookUrl
-                                        onTextChanged: root.settingDingTalkWebhookUrl = text
-                                    }
-
-                                    GlassTextField {
-                                        id: wechatWebhookField
-                                        Layout.fillWidth: true
-                                        visible: root.isChannelSelected("wechat")
-                                        placeholderText: "Wechat Webhook URL"
-                                        text: root.settingWechatWebhookUrl
-                                        onTextChanged: root.settingWechatWebhookUrl = text
-                                    }
-
-                                    GlassTextField {
-                                        id: qqWebhookField
-                                        Layout.fillWidth: true
-                                        visible: root.isChannelSelected("qq")
-                                        placeholderText: "QQ Bot Webhook URL"
-                                        text: root.settingQqWebhookUrl
-                                        onTextChanged: root.settingQqWebhookUrl = text
-                                    }
-
-                                    GlassTextField {
-                                        id: wecomWebhookField
-                                        Layout.fillWidth: true
-                                        visible: root.isChannelSelected("wecom")
-                                        placeholderText: "Wecom Webhook URL"
-                                        text: root.settingWecomWebhookUrl
-                                        onTextChanged: root.settingWecomWebhookUrl = text
                                     }
 
                                     Text {

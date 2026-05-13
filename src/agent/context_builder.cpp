@@ -103,7 +103,7 @@ QString ContextBuilder::getIdentity() const {
 You are Claw++, a helpful AI assistant specialized in Qt/C++ development.
 
 ## Claw++ Guidelines
-- State intent before tool calls, but NEVER predict or claim results before receiving them.
+- Do not narrate tool plans before calling tools. If a tool is needed, call it directly and only report verified results after it returns.
 - Before modifying a file, read it first. Do not assume files or directories exist.
 - After writing or editing a file, re-read it if accuracy matters.
 - If a tool call fails, analyze the error before retrying with a different approach.
@@ -127,7 +127,7 @@ Your workspace is at: %3
 - Skills: %3/skills/{skill-name}/SKILL.md
 
 ## Claw++ Guidelines
-- State intent before tool calls, but NEVER predict or claim results before receiving them.
+- Do not narrate tool plans before calling tools. If a tool is needed, call it directly and only report verified results after it returns.
 - Before modifying a file, read it first. Do not assume files or directories exist.
 - After writing or editing a file, re-read it if accuracy matters.
 - If a tool call fails, analyze the error before retrying with a different approach.
@@ -243,13 +243,29 @@ QString ContextBuilder::buildSkillsSection() {
     
     return QString(R"(# Skills
 
-The following skills extend your capabilities. To use a skill, read its SKILL.md file using the read_file tool.
-Skills with available="false" need dependencies installed first.
+The following list is the already-loaded skill catalog for this session.
+- If the user asks what skills/capabilities you have, answer directly from this list. Do not call tools, do not ask the user to inspect directories, and do not tell them to browse the skills folder.
+- Read a skill's SKILL.md file only when the user wants to use that specific skill or inspect its detailed instructions.
+- Skills with available="false" need dependencies installed first.
 
 %1)").arg(summary);
 }
 
 QString ContextBuilder::buildSystemPrompt() {
+    return buildSystemPromptInternal(true, true, true, true, true);
+}
+
+QString ContextBuilder::buildFastSystemPrompt() {
+    // 轻量模式仍需保留 skills 清单：
+    // 否则诸如“你有什么 skills”这类直接问答看不到已加载技能，只会泛化成“去目录里看”。
+    return buildSystemPromptInternal(false, false, false, false, true);
+}
+
+QString ContextBuilder::buildSystemPromptInternal(bool includeClaudeInstructions,
+                                                  bool includeMemory,
+                                                  bool includeHistory,
+                                                  bool includeActiveSkills,
+                                                  bool includeSkillsSection) {
     QStringList parts;
     
     // identity 位于最前，后续模块都在其基础上拼接。
@@ -260,7 +276,7 @@ QString ContextBuilder::buildSystemPrompt() {
         parts.append(bootstrap);
     }
 
-    if (m_templateLoader) {
+    if (includeClaudeInstructions && m_templateLoader) {
         const QString claudeInstructions = m_templateLoader->loadClaudeInstructions();
         if (!claudeInstructions.isEmpty()) {
             parts.append(QStringLiteral("# CLAUDE Instructions\n\n%1").arg(claudeInstructions));
@@ -272,12 +288,12 @@ QString ContextBuilder::buildSystemPrompt() {
         parts.append(profilePrompt);
     }
     
-    QString memory = loadMemory();
+    QString memory = includeMemory ? loadMemory() : QString();
     if (!memory.isEmpty()) {
         parts.append(QString("# Memory\n\n%1").arg(memory));
     }
 
-    QString history = loadHistory();
+    QString history = includeHistory ? loadHistory() : QString();
     if (!history.isEmpty()) {
         parts.append(QString("# Recent History\n\n%1").arg(history));
     }
@@ -292,12 +308,12 @@ Call only these exact tool names. If a desired capability is not listed, do the 
 %1)").arg(toolsDescription));
     }
     
-    QString alwaysSkills = loadSkills();
+    QString alwaysSkills = includeActiveSkills ? loadSkills() : QString();
     if (!alwaysSkills.isEmpty()) {
         parts.append(QString("# Active Skills\n\n%1").arg(alwaysSkills));
     }
     
-    QString skillsSection = buildSkillsSection();
+    QString skillsSection = includeSkillsSection ? buildSkillsSection() : QString();
     if (!skillsSection.isEmpty()) {
         parts.append(skillsSection);
     }
@@ -353,6 +369,20 @@ QString ContextBuilder::buildSystemPromptForInput(const QString& input) {
     }
 
     return parts.join("\n\n---\n\n");
+}
+
+QString ContextBuilder::buildFastSystemPromptForInput(const QString& input) {
+    const QString basePrompt = buildFastSystemPrompt();
+    const Skill matched = matchSkillForInput(input);
+    if (!matched.isValid()) {
+        return basePrompt
+            + QStringLiteral(
+                "\n\n---\n\n"
+                "# Response Mode\n\n"
+                "Prefer a direct answer. Do not plan aloud. Do not call tools unless the user clearly asks you to operate on files, code, commands, or external resources.");
+    }
+
+    return buildSystemPromptForInput(input);
 }
 
 bool ContextBuilder::reloadSkills() {

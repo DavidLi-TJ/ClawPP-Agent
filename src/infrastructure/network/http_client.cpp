@@ -212,6 +212,7 @@ void HttpClient::postStreamImpl(const QString& endpoint,
 
     QSharedPointer<bool> handled(new bool(false));
     QSharedPointer<bool> receivedAnyData(new bool(false));
+    QSharedPointer<QByteArray> bufferedResponse(new QByteArray());
 
     connect(timer.data(), &QTimer::timeout, [reply, timer, onError, handled]() {
         if (*handled) {
@@ -234,16 +235,29 @@ void HttpClient::postStreamImpl(const QString& endpoint,
         onError(QStringLiteral("请求超时"));
     });
 
-    connect(reply, &QNetworkReply::readyRead, [reply, onData, receivedAnyData, handled]() {
+    connect(reply, &QNetworkReply::readyRead, [reply, onData, receivedAnyData, handled, bufferedResponse]() {
         if (reply->property("clawpp_aborted").toBool() || *handled) {
             return;
         }
-        *receivedAnyData = true;
+
         QByteArray data = reply->readAll();
+        if (data.isEmpty()) {
+            return;
+        }
+
+        bufferedResponse->append(data);
+
+        const int statusCode = httpStatusCode(reply);
+        const bool looksLikeHttpError = statusCode >= 400 || reply->error() != QNetworkReply::NoError;
+        if (looksLikeHttpError) {
+            return;
+        }
+
+        *receivedAnyData = true;
         onData(data);
     });
 
-    connect(reply, &QNetworkReply::finished, [this, reply, timer, onData, onComplete, onError, attempt, body, endpoint, requestGeneration, handled, receivedAnyData]() {
+    connect(reply, &QNetworkReply::finished, [this, reply, timer, onData, onComplete, onError, attempt, body, endpoint, requestGeneration, handled, receivedAnyData, bufferedResponse]() {
         if (timer) {
             timer->stop();
             timer->deleteLater();
@@ -263,7 +277,11 @@ void HttpClient::postStreamImpl(const QString& endpoint,
         }
 
         const int statusCode = httpStatusCode(reply);
-        const QByteArray responseData = reply->readAll();
+        const QByteArray tailData = reply->readAll();
+        if (!tailData.isEmpty()) {
+            bufferedResponse->append(tailData);
+        }
+        const QByteArray responseData = *bufferedResponse;
         const QString defaultError = reply->errorString();
         QString errorStr = responseData.isEmpty() ? defaultError : parseErrorResponse(responseData, defaultError);
 
@@ -329,11 +347,13 @@ void HttpClient::abort() {
 }
 
 QString HttpClient::parseErrorResponse(const QByteArray& data, const QString& defaultError) {
+    const QString rawText = QString::fromUtf8(data).trimmed();
+
     QJsonParseError error;
     QJsonDocument doc = QJsonDocument::fromJson(data, &error);
     
     if (error.error != QJsonParseError::NoError) {
-        return defaultError;
+        return rawText.isEmpty() ? defaultError : rawText;
     }
     
     QJsonObject obj = doc.object();
@@ -345,7 +365,7 @@ QString HttpClient::parseErrorResponse(const QByteArray& data, const QString& de
         }
     }
     
-    return defaultError;
+    return rawText.isEmpty() ? defaultError : rawText;
 }
 
 int HttpClient::httpStatusCode(QNetworkReply* reply) {

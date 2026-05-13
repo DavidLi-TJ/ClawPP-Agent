@@ -37,6 +37,7 @@
 #include "tool/tools/read_file_tool.h"
 #include "tool/tools/write_file_tool.h"
 #include "tool/tools/list_directory_tool.h"
+#include "tool/tools/compact_tool.h"
 #include "tool/tools/edit_file_tool.h"
 #include "tool/tools/search_files_tool.h"
 #include "tool/tools/shell_tool.h"
@@ -248,6 +249,414 @@ QString htmlEscapePreservingWhitespace(const QString& input) {
     return escaped;
 }
 
+int commonPrefixLength(const QString& left, const QString& right) {
+    const int limit = qMin(left.size(), right.size());
+    int i = 0;
+    while (i < limit && left.at(i) == right.at(i)) {
+        ++i;
+    }
+    return i;
+}
+
+int overlapSuffixPrefixLength(const QString& left, const QString& right) {
+    const int maxOverlap = qMin(left.size(), right.size());
+    for (int len = maxOverlap; len > 0; --len) {
+        if (left.right(len) == right.left(len)) {
+            return len;
+        }
+    }
+    return 0;
+}
+
+bool looksLikePlanningAssistantText(const QString& text) {
+    const QString normalized = text.trimmed();
+    if (normalized.isEmpty()) {
+        return false;
+    }
+
+    static const QRegularExpression preambleRe(
+        QStringLiteral(R"(^(我来帮你|我来帮您|我将帮你|我将帮您|让我来|现在让我|下面我来|首先|接下来|I will|Let me|I'll))"),
+        QRegularExpression::CaseInsensitiveOption);
+    if (!preambleRe.match(normalized).hasMatch()) {
+        return false;
+    }
+
+    return normalized.size() <= 220;
+}
+
+QString assistantToolProgressText(const QString& toolName, bool completed, bool success) {
+    const QString safeName = toolName.trimmed().isEmpty() ? QStringLiteral("tool") : toolName.trimmed();
+    if (!completed) {
+        return QStringLiteral("[正在执行 %1]").arg(safeName);
+    }
+    return success
+        ? QStringLiteral("[已完成 %1，继续处理中]").arg(safeName)
+        : QStringLiteral("[%1 执行失败，正在调整]").arg(safeName);
+}
+
+bool looksLikeTransientAssistantStatus(const QString& text) {
+    const QString normalized = text.trimmed();
+    return normalized.startsWith(QStringLiteral("[正在执行 "))
+        || normalized.startsWith(QStringLiteral("[已完成 "))
+        || normalized.startsWith(QStringLiteral("["))
+           && normalized.contains(QStringLiteral("执行失败，正在调整]"));
+}
+
+QString firstMeaningfulAssistantLine(const QString& text) {
+    const QStringList lines = text.split('\n');
+    for (const QString& line : lines) {
+        const QString trimmed = line.trimmed();
+        if (!trimmed.isEmpty()) {
+            return trimmed;
+        }
+    }
+    return QString();
+}
+
+bool containsTransientAssistantStatusLine(const QString& text) {
+    const QStringList lines = text.split('\n');
+    for (const QString& line : lines) {
+        if (looksLikeTransientAssistantStatus(line)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QString transientAssistantStatusPrefix(const QString& text) {
+    const QStringList lines = text.split('\n');
+    QStringList prefix;
+    for (const QString& line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            if (!prefix.isEmpty()) {
+                prefix.append(line);
+            }
+            continue;
+        }
+        if (!looksLikeTransientAssistantStatus(trimmed)) {
+            break;
+        }
+        prefix.append(line);
+    }
+    return prefix.join(QStringLiteral("\n")).trimmed();
+}
+
+QString stripTransientAssistantStatusPrefix(const QString& text) {
+    const QStringList lines = text.split('\n');
+    QStringList body;
+    bool prefixEnded = false;
+    for (const QString& line : lines) {
+        const QString trimmed = line.trimmed();
+        if (!prefixEnded) {
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (looksLikeTransientAssistantStatus(trimmed)) {
+                continue;
+            }
+            prefixEnded = true;
+        }
+        body.append(line);
+    }
+    return body.join(QStringLiteral("\n")).trimmed();
+}
+
+QString mergeAssistantStatusPrefixWithBody(const QString& existing, const QString& body) {
+    const QString normalizedBody = body.trimmed();
+    if (normalizedBody.isEmpty()) {
+        return existing;
+    }
+    const QString prefix = transientAssistantStatusPrefix(existing);
+    if (prefix.isEmpty()) {
+        return body;
+    }
+    return QStringLiteral("%1\n%2").arg(prefix, normalizedBody);
+}
+
+QString appendAssistantLine(const QString& existing, const QString& next) {
+    const QString left = existing.trimmed();
+    const QString right = next.trimmed();
+    if (right.isEmpty()) {
+        return existing;
+    }
+    if (left.isEmpty()) {
+        return next;
+    }
+    if (left == right || left.endsWith(right) || left.contains(QStringLiteral("\n") + right)) {
+        return existing;
+    }
+    return existing + QStringLiteral("\n") + next;
+}
+
+QString sanitizeAssistantStreamingDelta(const QString& existing,
+                                        const QString& pending,
+                                        const QString& incoming) {
+    if (incoming.isEmpty()) {
+        return QString();
+    }
+
+    if (incoming.trimmed().isEmpty()) {
+        const QString existingFirstLine = firstMeaningfulAssistantLine(existing);
+        const bool onlyPreambleOrStatus =
+            existing.trimmed().isEmpty()
+            || looksLikePlanningAssistantText(existingFirstLine)
+            || containsTransientAssistantStatusLine(existing);
+        if (onlyPreambleOrStatus && pending.trimmed().isEmpty()) {
+            return QString();
+        }
+
+        if (pending.trimmed().isEmpty()) {
+            return QStringLiteral("\n");
+        }
+
+        return pending.endsWith('\n') ? QString() : QStringLiteral("\n");
+    }
+
+    const QString currentVisible = existing + pending;
+    if (currentVisible.isEmpty()) {
+        return incoming;
+    }
+    if (incoming == currentVisible || currentVisible.endsWith(incoming)) {
+        return QString();
+    }
+    if (incoming.startsWith(currentVisible)) {
+        return incoming.mid(currentVisible.size());
+    }
+
+    const int overlap = overlapSuffixPrefixLength(currentVisible, incoming);
+    if (overlap > 0) {
+        return incoming.mid(overlap);
+    }
+
+    return incoming;
+}
+
+QString mergeAssistantCompletionText(const QString& existing, const QString& next) {
+    const QString left = existing.trimmed();
+    const QString right = next.trimmed();
+    if (right.isEmpty()) {
+        return existing;
+    }
+    if (left.isEmpty()) {
+        return next;
+    }
+    if (left == right || left.endsWith(right)) {
+        return existing;
+    }
+
+    const QString firstLine = firstMeaningfulAssistantLine(existing);
+    const bool hasTransientStatus = containsTransientAssistantStatusLine(existing);
+    const bool preserveVisibleHistory =
+        hasTransientStatus || looksLikePlanningAssistantText(firstLine);
+    const QString stableLeft = hasTransientStatus
+        ? stripTransientAssistantStatusPrefix(existing)
+        : left;
+
+    if (hasTransientStatus && !stableLeft.isEmpty()) {
+        if (stableLeft == right || stableLeft.endsWith(right)) {
+            return existing;
+        }
+        if (right.startsWith(stableLeft)
+            || (stableLeft.size() >= 24 && right.contains(stableLeft))) {
+            return mergeAssistantStatusPrefixWithBody(existing, right);
+        }
+        if (right.size() >= 24 && stableLeft.contains(right)) {
+            return existing;
+        }
+        const int stablePrefix = commonPrefixLength(stableLeft, right);
+        if (stablePrefix >= 12
+            && stablePrefix * 2 >= qMin(stableLeft.size(), right.size())) {
+            return mergeAssistantStatusPrefixWithBody(existing, right);
+        }
+    }
+
+    if (!preserveVisibleHistory) {
+        if (left.size() >= 24 && right.contains(left)) {
+            return next;
+        }
+        if (right.size() >= 24 && left.contains(right)) {
+            return existing;
+        }
+        if (right.startsWith(left)) {
+            return next;
+        }
+        const int prefix = commonPrefixLength(left, right);
+        if (prefix >= 12
+            && prefix * 2 >= qMin(left.size(), right.size())) {
+            return next;
+        }
+    }
+
+    if (right.startsWith(left)) {
+        const QString suffix = right.mid(left.size()).trimmed();
+        return suffix.isEmpty() ? existing : appendAssistantLine(existing, suffix);
+    }
+
+    const int prefix = commonPrefixLength(left, right);
+    if (prefix >= 12
+        && prefix * 2 >= qMin(left.size(), right.size())) {
+        const QString suffix = right.mid(prefix).trimmed();
+        return suffix.isEmpty() ? existing : appendAssistantLine(existing, suffix);
+    }
+
+    return appendAssistantLine(existing, next);
+}
+
+QString visibleMessageText(const Message& message) {
+    if (message.role == MessageRole::Assistant && message.content.trimmed().isEmpty()) {
+        return QStringLiteral("正在生成…");
+    }
+    const QString explicitDisplay = message.metadata.value(QStringLiteral("display_content")).toString();
+    if (!explicitDisplay.trimmed().isEmpty()) {
+        return explicitDisplay;
+    }
+    return message.content;
+}
+
+bool sameToolCalls(const QList<ToolCallData>& left, const QList<ToolCallData>& right) {
+    if (left.size() != right.size()) {
+        return false;
+    }
+    for (int i = 0; i < left.size(); ++i) {
+        if (left.at(i).id != right.at(i).id
+            || left.at(i).type != right.at(i).type
+            || left.at(i).name != right.at(i).name
+            || left.at(i).arguments != right.at(i).arguments) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isDisplayEquivalentMessage(const Message& left, const Message& right) {
+    return left.role == right.role
+        && left.name == right.name
+        && left.toolCallId == right.toolCallId
+        && visibleMessageText(left) == visibleMessageText(right)
+        && sameToolCalls(left.toolCalls, right.toolCalls);
+}
+
+QString workflowBranchTitle(const QString& templateId, int index) {
+    const bool firstBranch = index == 0;
+    if (templateId == QStringLiteral("coding")) {
+        return firstBranch
+            ? QStringLiteral("分支A（实现）")
+            : QStringLiteral("分支B（验证）");
+    }
+    return firstBranch
+        ? QStringLiteral("分支A（信息收集）")
+        : QStringLiteral("分支B（交叉验证）");
+}
+
+QString workflowSingleLineSnippet(QString text, int maxLength = 220) {
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    text.replace(QChar::CarriageReturn, QChar::LineFeed);
+    text = text.simplified();
+    if (text.size() > maxLength) {
+        text = text.left(maxLength) + QStringLiteral("...");
+    }
+    return text;
+}
+
+QString extractWorkflowFinalSnippet(const QString& text) {
+    const int finalIndex = text.indexOf(QStringLiteral("【Final】"));
+    if (finalIndex < 0) {
+        return QString();
+    }
+
+    QString tail = text.mid(finalIndex + QStringLiteral("【Final】").size()).trimmed();
+    const int nextSectionIndex = tail.indexOf(QStringLiteral("\n【"));
+    if (nextSectionIndex >= 0) {
+        tail = tail.left(nextSectionIndex).trimmed();
+    }
+    return workflowSingleLineSnippet(tail);
+}
+
+bool workflowBranchNeedsLocalFallback(const ToolResult& result) {
+    if (!result.success) {
+        return true;
+    }
+
+    const QString text = result.content.trimmed();
+    if (text.isEmpty()) {
+        return true;
+    }
+
+    return text.startsWith(QStringLiteral("模型未继续总结工具结果"))
+        || text.startsWith(QStringLiteral("模型未给出最终回答"))
+        || text.contains(QStringLiteral("未完成结果总结"))
+        || text.contains(QStringLiteral("子代理完成（无输出）"))
+        || text.contains(QStringLiteral("子代理失败（无错误详情）"));
+}
+
+QString workflowParallelFallbackSummary(const QString& templateId,
+                                        const QString& task,
+                                        const QVector<ToolResult>& results) {
+    QStringList nodeLogs;
+    QStringList usableFindings;
+    bool anyFailure = false;
+    bool anyIncomplete = false;
+
+    for (int i = 0; i < results.size(); ++i) {
+        const ToolResult& result = results[i];
+        const QString branchTitle = workflowBranchTitle(templateId, i);
+        const QString finalSnippet = extractWorkflowFinalSnippet(result.content);
+        const QString fallbackSnippet = workflowSingleLineSnippet(result.content);
+
+        if (!result.success) {
+            anyFailure = true;
+            nodeLogs.append(QStringLiteral("- %1：执行失败。%2")
+                                .arg(branchTitle,
+                                     fallbackSnippet.isEmpty()
+                                         ? QStringLiteral("无错误详情。")
+                                         : fallbackSnippet));
+            continue;
+        }
+
+        if (workflowBranchNeedsLocalFallback(result)) {
+            anyIncomplete = true;
+            nodeLogs.append(QStringLiteral("- %1：工具已返回，但子Agent未完成最终总结。最近内容：%2")
+                                .arg(branchTitle,
+                                     fallbackSnippet.isEmpty()
+                                         ? QStringLiteral("无可用输出。")
+                                         : fallbackSnippet));
+            continue;
+        }
+
+        const QString snippet = finalSnippet.isEmpty() ? fallbackSnippet : finalSnippet;
+        nodeLogs.append(QStringLiteral("- %1：执行完成。摘要：%2")
+                            .arg(branchTitle,
+                                 snippet.isEmpty()
+                                     ? QStringLiteral("已完成，但摘要为空。")
+                                     : snippet));
+        if (!snippet.isEmpty()) {
+            usableFindings.append(QStringLiteral("- %1：%2").arg(branchTitle, snippet));
+        }
+    }
+
+    QStringList finalLines;
+    if (usableFindings.isEmpty()) {
+        finalLines.append(QStringLiteral("- 当前没有可直接展示的并行子Agent最终结论。"));
+    } else {
+        finalLines.append(QStringLiteral("- 已保留可用分支结果："));
+        finalLines.append(usableFindings.join(QStringLiteral("\n")));
+    }
+
+    if (anyIncomplete) {
+        finalLines.append(QStringLiteral("- 失败原因：至少一个子Agent在工具调用后停在中间态，没有继续完成总结。"));
+    }
+    if (anyFailure) {
+        finalLines.append(QStringLiteral("- 另有分支执行失败，已停止继续扩散内部失败日志。"));
+    }
+    finalLines.append(QStringLiteral("- 下一步最小行动：回退为单Agent顺序模式，直接基于现有工具结果完成最终回答。"));
+
+    return QStringLiteral("【Plan】\n- 并行分支已执行完毕，主Agent改为本地收束，避免界面只显示子Agent内部失败日志。\n- 任务：%1\n\n【Node Logs】\n%2\n\n【Final】\n%3")
+        .arg(task.trimmed(),
+             nodeLogs.isEmpty() ? QStringLiteral("- 未收集到分支结果。") : nodeLogs.join(QStringLiteral("\n")),
+             finalLines.join(QStringLiteral("\n")));
+}
+
 }
 
 void QmlBackend::registerTools() {
@@ -258,8 +667,9 @@ void QmlBackend::registerTools() {
     registry.registerTool(new ListDirectoryTool());
     registry.registerTool(new EditFileTool());
     registry.registerTool(new SearchFilesTool());
+    registry.registerTool(new CompactTool());
     auto* shellTool = new ShellTool();
-    shellTool->setWorkingDirectory(backendWorkspaceRoot());
+    shellTool->setWorkingDirectory(QDir::currentPath());
     shellTool->setDefaultTimeout(120000);
     registry.registerTool(shellTool);
     registry.registerTool(new NetworkTool());
@@ -468,7 +878,13 @@ void QmlBackend::setupConnections() {
 
     connect(m_agentService, &AgentService::responseChunk, this, [this](const StreamChunk& chunk) {
         if (m_streamingAssistantRow >= 0 && !chunk.content.isEmpty()) {
-            m_pendingAssistantChunk += chunk.content;
+            const QVariantMap row = m_messagesModel->get(m_streamingAssistantRow);
+            const QString existing = row.value(QStringLiteral("content")).toString();
+            const QString sanitized = sanitizeAssistantStreamingDelta(existing, m_pendingAssistantChunk, chunk.content);
+            if (sanitized.isEmpty()) {
+                return;
+            }
+            m_pendingAssistantChunk += sanitized;
             if (m_pendingAssistantChunk.size() >= 72) {
                 flushPendingAssistantChunk(true);
             } else if (m_chunkFlushTimer && !m_chunkFlushTimer->isActive()) {
@@ -478,6 +894,21 @@ void QmlBackend::setupConnections() {
     });
 
     connect(m_agentService, &AgentService::toolCallRequested, this, [this](const ToolCall& call) {
+        if (m_streamingAssistantRow >= 0) {
+            if (m_chunkFlushTimer) {
+                m_chunkFlushTimer->stop();
+            }
+            flushPendingAssistantChunk(true);
+            const QVariantMap row = m_messagesModel->get(m_streamingAssistantRow);
+            const QString existing = row.value(QStringLiteral("content")).toString();
+            if (looksLikePlanningAssistantText(firstMeaningfulAssistantLine(existing))
+                || existing.trimmed().isEmpty()
+                || containsTransientAssistantStatusLine(existing)) {
+                m_messagesModel->updateMessage(
+                    m_streamingAssistantRow,
+                    appendAssistantLine(existing, assistantToolProgressText(call.name, false, true)));
+            }
+        }
         m_statusText = QStringLiteral("执行工具：%1").arg(call.name);
         emit statusTextChanged();
         setToolHintText(QStringLiteral("🔧 %1").arg(call.name));
@@ -514,6 +945,17 @@ void QmlBackend::setupConnections() {
             setToolHintText(result.success
                 ? QStringLiteral("✅ %1").arg(toolName)
                 : QStringLiteral("❌ %1").arg(toolName));
+        }
+
+        if (m_streamingAssistantRow >= 0) {
+            const QVariantMap row = m_messagesModel->get(m_streamingAssistantRow);
+            const QString existing = row.value(QStringLiteral("content")).toString();
+            if (containsTransientAssistantStatusLine(existing)
+                || looksLikePlanningAssistantText(firstMeaningfulAssistantLine(existing))) {
+                m_messagesModel->updateMessage(
+                    m_streamingAssistantRow,
+                    appendAssistantLine(existing, assistantToolProgressText(toolName, true, result.success)));
+            }
         }
 
         bool appended = false;
@@ -557,51 +999,10 @@ void QmlBackend::setupConnections() {
 
     connect(m_agentService, &AgentService::responseComplete, this, [this](const QString& fullResponse) {
         flushPendingAssistantChunk(true);
-        const QString activeSessionId = m_sessionManager ? m_sessionManager->currentSessionId() : QString();
         if (m_streamingAssistantRow >= 0) {
-            const QString normalized = fullResponse.trimmed();
-            const QVariantMap row = m_messagesModel->get(m_streamingAssistantRow);
-            const QString existing = row.value(QStringLiteral("content")).toString();
-            const QString existingTrimmed = existing.trimmed();
-
-            // 保留流式过程中已展示的内容，避免在完成时整条被覆盖导致前文消失。
-            if (normalized.isEmpty()) {
-                if (existingTrimmed.isEmpty()) {
-                    QString fallback = QStringLiteral("（模型返回空响应）");
-                    const MessageList snapshot = m_messagesModel->messages();
-                    for (auto it = snapshot.crbegin(); it != snapshot.crend(); ++it) {
-                        const bool isTool = (it->role == MessageRole::Tool);
-                        const bool isToolFailureSystem =
-                            (it->role == MessageRole::System
-                             && it->content.contains(QStringLiteral("工具"))
-                             && it->content.contains(QStringLiteral("失败")));
-                        if (!isTool && !isToolFailureSystem) {
-                            continue;
-                        }
-                        const QString toolText = it->content.simplified();
-                        if (toolText.isEmpty()) {
-                            continue;
-                        }
-                        QString snippet = toolText;
-                        if (snippet.size() > 160) {
-                            snippet = snippet.left(160) + QStringLiteral("...");
-                        }
-                        fallback = QStringLiteral("模型未给出最终回答，最近工具状态：%1").arg(snippet);
-                        break;
-                    }
-                    m_messagesModel->updateMessage(m_streamingAssistantRow, fallback);
-                }
-            } else if (existingTrimmed.isEmpty()) {
-                m_messagesModel->updateMessage(m_streamingAssistantRow, normalized);
-            } else if (normalized == existingTrimmed || normalized.startsWith(existingTrimmed)) {
-                m_messagesModel->updateMessage(m_streamingAssistantRow, normalized);
-            } else if (!existingTrimmed.contains(normalized)) {
-                m_messagesModel->updateMessage(
-                    m_streamingAssistantRow,
-                    existingTrimmed + QStringLiteral("\n\n") + normalized);
-            }
+            m_messagesModel->updateMessage(m_streamingAssistantRow, fullResponse);
         }
-
+        const QString activeSessionId = m_sessionManager ? m_sessionManager->currentSessionId() : QString();
         if (!activeSessionId.isEmpty() && m_externalPlatformManager) {
             const auto it = m_externalConversationContexts.constFind(activeSessionId);
             if (it != m_externalConversationContexts.constEnd()) {
@@ -618,14 +1019,15 @@ void QmlBackend::setupConnections() {
             }
         }
 
-        m_sessionManager->updateMessages(m_messagesModel->messages());
-        refreshSessions();
+        // 根修：完成阶段不再把第二份 fullResponse 合并回 UI 气泡。
+        // 统一以 ReactAgentCore -> conversationChanged -> SessionManager 持久化的
+        // 最终 assistant 消息作为唯一事实源，再回灌到消息模型。
+        syncCurrentSession();
         persistUsageSnapshotIfNeeded();
         setGenerating(false);
         m_statusText = QStringLiteral("已完成");
         emit statusTextChanged();
         setToolHintText(QString());
-        syncCurrentSession();
         m_streamingAssistantRow = -1;
     });
 
@@ -700,7 +1102,7 @@ void QmlBackend::setupConnections() {
         sendMessage(content);
     });
 
-    connect(m_agentService, &AgentService::conversationChanged, m_sessionManager, &SessionManager::updateMessages);
+    connect(m_agentService, &AgentService::conversationUpdatedRaw, m_sessionManager, &SessionManager::updateMessages);
 
     if (m_agentService && m_agentService->toolExecutor()) {
         m_agentService->toolExecutor()->setAutoApproveConfirmations(true);
@@ -750,12 +1152,31 @@ void QmlBackend::syncCurrentSession() {
     const Session session = m_sessionManager->currentSession();
     m_currentSessionId = session.id;
     m_currentSessionName = session.name.isEmpty() ? QStringLiteral("Claw++") : session.name;
-    m_messagesModel->setMessages(session.messages);
+    const MessageList displayMessages = m_agentService
+        ? m_agentService->displayConversation(session.messages)
+        : session.messages;
+    syncMessagesIncrementally(displayMessages);
     refreshSessions();
     emit currentSessionChanged();
     m_statusText = session.id.isEmpty() ? QStringLiteral("未选择会话") : QStringLiteral("会话已就绪");
     emit statusTextChanged();
     setToolHintText(QString());
+}
+
+void QmlBackend::syncMessagesIncrementally(const MessageList& messages) {
+    const MessageList currentMessages = m_messagesModel->messages();
+    if (currentMessages.size() != messages.size()) {
+        m_messagesModel->setMessages(messages);
+        return;
+    }
+
+    for (int i = 0; i < messages.size(); ++i) {
+        const Message& expected = messages.at(i);
+        const Message& current = currentMessages.at(i);
+        if (!isDisplayEquivalentMessage(current, expected)) {
+            m_messagesModel->replaceMessage(i, expected);
+        }
+    }
 }
 
 void QmlBackend::setGenerating(bool generating) {
@@ -790,8 +1211,29 @@ void QmlBackend::flushPendingAssistantChunk(bool force) {
     if (!force && m_pendingAssistantChunk.size() < 10) {
         return;
     }
-    const QString delta = m_pendingAssistantChunk;
+    QString delta = m_pendingAssistantChunk;
     m_pendingAssistantChunk.clear();
+    const QVariantMap row = m_messagesModel->get(m_streamingAssistantRow);
+    const QString existing = row.value(QStringLiteral("content")).toString();
+    if (delta.trimmed().isEmpty()) {
+        if (existing.trimmed().isEmpty()) {
+            return;
+        }
+        if (containsTransientAssistantStatusLine(existing)
+            || looksLikePlanningAssistantText(firstMeaningfulAssistantLine(existing))) {
+            return;
+        }
+        if (existing.endsWith(QStringLiteral("\n\n"))) {
+            return;
+        }
+        delta = existing.endsWith('\n') ? QStringLiteral("\n") : QStringLiteral("\n\n");
+    }
+    if (containsTransientAssistantStatusLine(existing)) {
+        m_messagesModel->updateMessage(
+            m_streamingAssistantRow,
+            appendAssistantLine(existing, delta));
+        return;
+    }
     m_messagesModel->appendToMessage(m_streamingAssistantRow, delta);
 }
 
@@ -818,8 +1260,6 @@ void QmlBackend::runAssistantWithInternalPrompt(const QString& prompt) {
     if (m_chunkFlushTimer) {
         m_chunkFlushTimer->stop();
     }
-    m_sessionManager->updateMessages(m_messagesModel->messages());
-    refreshSessions();
 
     setGenerating(true);
     m_promptTokens = 0;
@@ -1114,12 +1554,11 @@ QVariantMap QmlBackend::getSettings() const {
     settings.insert(QStringLiteral("feishuAppSecret"), config.getFeishuAppSecret());
     settings.insert(QStringLiteral("feishuVerificationToken"), config.getFeishuVerificationToken());
     settings.insert(QStringLiteral("feishuPort"), config.getFeishuPort());
-    settings.insert(QStringLiteral("discordWebhookUrl"), config.getExternalValue(QStringLiteral("discord_webhook_url")));
-    settings.insert(QStringLiteral("dingtalkWebhookUrl"), config.getExternalValue(QStringLiteral("dingtalk_webhook_url")));
-    settings.insert(QStringLiteral("wechatWebhookUrl"), config.getExternalValue(QStringLiteral("wechat_webhook_url")));
-    settings.insert(QStringLiteral("qqWebhookUrl"), config.getExternalValue(QStringLiteral("qq_webhook_url")));
-    settings.insert(QStringLiteral("wecomWebhookUrl"), config.getExternalValue(QStringLiteral("wecom_webhook_url")));
-    settings.insert(QStringLiteral("messageChannel"), config.getExternalValue(QStringLiteral("message_channel")));
+    const QString configuredChannel = config.getExternalValue(QStringLiteral("message_channel")).trimmed().toLower();
+    settings.insert(QStringLiteral("messageChannel"),
+                    configuredChannel == QStringLiteral("feishu")
+                        ? QStringLiteral("feishu")
+                        : QStringLiteral("telegram"));
     settings.insert(QStringLiteral("chatFontSize"), config.getExternalValue(QStringLiteral("chat_font_size")).toInt());
     settings.insert(QStringLiteral("chatLineHeight"), config.getExternalValue(QStringLiteral("chat_line_height")).toDouble());
     settings.insert(QStringLiteral("panelOpacity"), config.getExternalValue(QStringLiteral("panel_opacity")).toDouble());
@@ -1508,23 +1947,12 @@ bool QmlBackend::applySettings(const QVariantMap& settings) {
     if (settings.contains(QStringLiteral("feishuPort"))) {
         config.setFeishuPort(settings.value(QStringLiteral("feishuPort")).toInt());
     }
-    if (settings.contains(QStringLiteral("discordWebhookUrl"))) {
-        config.setExternalValue(QStringLiteral("discord_webhook_url"), settings.value(QStringLiteral("discordWebhookUrl")).toString().trimmed());
-    }
-    if (settings.contains(QStringLiteral("dingtalkWebhookUrl"))) {
-        config.setExternalValue(QStringLiteral("dingtalk_webhook_url"), settings.value(QStringLiteral("dingtalkWebhookUrl")).toString().trimmed());
-    }
-    if (settings.contains(QStringLiteral("wechatWebhookUrl"))) {
-        config.setExternalValue(QStringLiteral("wechat_webhook_url"), settings.value(QStringLiteral("wechatWebhookUrl")).toString().trimmed());
-    }
-    if (settings.contains(QStringLiteral("qqWebhookUrl"))) {
-        config.setExternalValue(QStringLiteral("qq_webhook_url"), settings.value(QStringLiteral("qqWebhookUrl")).toString().trimmed());
-    }
-    if (settings.contains(QStringLiteral("wecomWebhookUrl"))) {
-        config.setExternalValue(QStringLiteral("wecom_webhook_url"), settings.value(QStringLiteral("wecomWebhookUrl")).toString().trimmed());
-    }
     if (settings.contains(QStringLiteral("messageChannel"))) {
-        config.setExternalValue(QStringLiteral("message_channel"), settings.value(QStringLiteral("messageChannel")).toString().trimmed());
+        const QString normalized = settings.value(QStringLiteral("messageChannel")).toString().trimmed().toLower();
+        config.setExternalValue(QStringLiteral("message_channel"),
+                                normalized == QStringLiteral("feishu")
+                                    ? QStringLiteral("feishu")
+                                    : QStringLiteral("telegram"));
     }
     if (settings.contains(QStringLiteral("chatFontSize"))) {
         const int fontSize = qBound(11, settings.value(QStringLiteral("chatFontSize")).toInt(), 20);
@@ -1767,7 +2195,7 @@ QString QmlBackend::startAgentWorkflow(const QString& templateId,
         const QString branchTask = i == 0 ? subtasks.first : subtasks.second;
         args.insert(QStringLiteral("agent_type"), i == 0 ? QStringLiteral("analysis") : QStringLiteral("review"));
         args.insert(QStringLiteral("task"), branchTask);
-        args.insert(QStringLiteral("goal"), QStringLiteral("给出结构化结果，包含结论、依据、风险与下一步建议"));
+        args.insert(QStringLiteral("goal"), QStringLiteral("必须完成到最终结论；若调用工具，工具返回后继续总结，输出结论、依据、风险与下一步建议，不要只停留在计划或中间日志。"));
         args.insert(QStringLiteral("max_iterations"), 5);
         call.arguments = args;
         calls.append(call);
@@ -1890,6 +2318,26 @@ QString QmlBackend::startAgentWorkflow(const QString& templateId,
                     .arg(state->hasFailure ? QStringLiteral("ERR") : QStringLiteral("OK")));
             m_sessionManager->updateMessages(m_messagesModel->messages());
             refreshSessions();
+
+            bool needsLocalFallback = state->hasFailure;
+            for (const ToolResult& result : state->results) {
+                if (workflowBranchNeedsLocalFallback(result)) {
+                    needsLocalFallback = true;
+                    break;
+                }
+            }
+
+            if (needsLocalFallback) {
+                m_messagesModel->addMessage(
+                    static_cast<int>(MessageRole::Assistant),
+                    workflowParallelFallbackSummary(normalizedTemplate, normalizedTask, state->results));
+                m_sessionManager->updateMessages(m_messagesModel->messages());
+                refreshSessions();
+                m_statusText = QStringLiteral("工作流已完成（本地收束）");
+                emit statusTextChanged();
+                setToolHintText(QString());
+                return;
+            }
 
             const QString synthPrompt = QStringLiteral(
                 "你是主Agent，整合并行子Agent结果，输出简洁结论。\n"
@@ -2136,7 +2584,13 @@ QString QmlBackend::formatMessageText(const QString& text,
 
     const QString fontStyle = italic ? QStringLiteral("italic") : QStringLiteral("normal");
     return QStringLiteral(
-        "<div style=\"line-height:%1; font-style:%2; white-space:normal;\">%3</div>")
+        "<div style=\"line-height:%1; font-style:%2; white-space:normal; max-width:100%%; "
+        "overflow-wrap:anywhere; word-wrap:break-word; word-break:break-word;\">"
+        "<style>"
+        "p,div,span,li,pre,code{max-width:100%%;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;white-space:normal;}"
+        "pre,code{white-space:pre-wrap;}"
+        "img,table{max-width:100%%;}"
+        "</style>%3</div>")
         .arg(QString::number(clampedLineHeight, 'f', 2),
              fontStyle,
              bodyHtml);
@@ -2379,8 +2833,6 @@ void QmlBackend::sendMessage(const QString& content) {
     if (m_chunkFlushTimer) {
         m_chunkFlushTimer->stop();
     }
-    m_sessionManager->updateMessages(m_messagesModel->messages());
-    refreshSessions();
 
     setGenerating(true);
     m_promptTokens = 0;

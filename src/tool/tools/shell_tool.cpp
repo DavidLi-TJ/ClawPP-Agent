@@ -54,7 +54,7 @@ QString ShellTool::name() const {
 }
 
 QString ShellTool::description() const {
-    return "Execute shell commands with timeout and security controls. Commands are validated against a blacklist for safety.";
+    return "Execute shell commands with timeout and security controls. On Windows, prefer PowerShell-safe commands with absolute paths, use [Environment]::GetFolderPath('Desktop') plus Join-Path for Desktop files, verify paths with Test-Path, and run local executables as .\\program.exe or & $exe. Commands are validated against a blacklist for safety.";
 }
 
 QJsonObject ShellTool::parameters() const {
@@ -65,7 +65,7 @@ QJsonObject ShellTool::parameters() const {
     
     QJsonObject command;
     command["type"] = "string";
-    command["description"] = "The shell command to execute";
+    command["description"] = "The shell command to execute. On Windows, prefer PowerShell syntax with absolute paths and quote paths that may contain spaces or non-ASCII characters.";
     properties["command"] = command;
     
     QJsonObject workingDir;

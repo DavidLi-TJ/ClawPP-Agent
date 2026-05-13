@@ -11,6 +11,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Sql Widgets)
 
 qt_standard_project_setup(REQUIRES 6.5)
+enable_testing()
 
 # ========== Sources ==========
 
@@ -48,6 +49,7 @@ set(PROJECT_SOURCES
     src/infrastructure/network/http_client.cpp
     src/infrastructure/network/sse_parser.cpp
     src/infrastructure/runner/runner_manager.cpp
+    src/infrastructure/runner/shell_command_runner.cpp
 
     # Memory
     src/memory/conversation_history.cpp
@@ -75,6 +77,7 @@ set(PROJECT_SOURCES
     src/tool/i_tool.cpp
     src/tool/tool_executor.cpp
     src/tool/tool_registry.cpp
+    src/tool/tools/compact_tool.cpp
     src/tool/tools/edit_file_tool.cpp
     src/tool/tools/filesystem_tool.cpp
     src/tool/tools/list_directory_tool.cpp
@@ -105,6 +108,7 @@ qt_add_executable(ClawPP WIN32
 
 qt_add_executable(clawrunner_internal
     src/runner/main.cpp
+    src/infrastructure/runner/shell_command_runner.cpp
 )
 
 add_dependencies(ClawPP clawrunner_internal)
@@ -112,6 +116,10 @@ add_dependencies(ClawPP clawrunner_internal)
 # ========== Include Directories ==========
 
 target_include_directories(ClawPP PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_include_directories(clawrunner_internal PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
@@ -131,6 +139,51 @@ target_link_libraries(ClawPP PRIVATE
 target_link_libraries(clawrunner_internal PRIVATE
     Qt6::Core
 )
+
+find_package(Qt6 QUIET COMPONENTS Test)
+if (Qt6Test_FOUND)
+    set(CORE_TEST_SOURCES ${PROJECT_SOURCES})
+    list(REMOVE_ITEM CORE_TEST_SOURCES src/main.cpp)
+
+    qt_add_executable(core_tests
+        tests/test_core.cpp
+        ${CORE_TEST_SOURCES}
+    )
+
+    target_include_directories(core_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(core_tests PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::QuickControls2
+        Qt6::Network
+        Qt6::Sql
+        Qt6::Widgets
+        Qt6::Test
+    )
+
+    add_test(NAME core_tests COMMAND core_tests)
+
+    qt_add_executable(shell_runner_tests
+        tests/test_shell_command_runner.cpp
+        src/infrastructure/runner/shell_command_runner.cpp
+    )
+
+    target_include_directories(shell_runner_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(shell_runner_tests PRIVATE
+        Qt6::Core
+        Qt6::Test
+    )
+
+    add_test(NAME shell_runner_tests COMMAND shell_runner_tests)
+endif()
 
 set_target_properties(clawrunner_internal PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

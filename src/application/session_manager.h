@@ -58,6 +58,7 @@ signals:
     void errorOccurred(const QString& error);
 
 private:
+    MessageList sanitizeMessages(const MessageList& messages) const;
     QString generateDefaultName() const;
     QString renderMarkdown(const Session& session, const MessageList& messages) const;
     QString renderPlainText(const Session& session, const MessageList& messages) const;

@@ -1,24 +1,13 @@
 #include "runner_manager.h"
+#include "shell_command_runner.h"
 #include <QProcess>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QDir>
 #include <QFile>
 #include <QCoreApplication>
-#include <QRegularExpression>
 
 namespace clawpp {
-
-namespace {
-
-QString adaptShellCommandForWindows(const QString& command) {
-    QString adapted = command;
-    adapted.replace(QRegularExpression(QStringLiteral("(?<![&])&&(?![&])")),
-                    QStringLiteral("& if errorlevel 1 exit /b %errorlevel% & "));
-    return adapted;
-}
-
-}
 
 RunnerManager& RunnerManager::instance() {
     static RunnerManager instance;
@@ -64,17 +53,11 @@ QJsonObject RunnerManager::executeLocal(const QString& action, const QJsonObject
     if (action == "shell") {
         QString command = params["command"].toString();
         QString cwd = params["cwd"].toString(QDir::currentPath());
-        
-#ifdef Q_OS_WIN
-        const QString adapted = adaptShellCommandForWindows(command);
-        QString fullCmd = QString("cmd /c \"%1\"").arg(adapted);
-#else
-        QString fullCmd = QString("bash -c \"%1\"").arg(command);
-#endif
 
         QProcess process;
         process.setWorkingDirectory(cwd);
-        process.startCommand(fullCmd);
+        const ShellLaunchSpec spec = buildShellLaunchSpec(command);
+        process.start(spec.program, spec.arguments);
 
         if (!process.waitForStarted(1000)) {
             result["error"] = "Process failed to start.";
@@ -91,8 +74,12 @@ QJsonObject RunnerManager::executeLocal(const QString& action, const QJsonObject
         }
 
         result["stdout"] = QString::fromUtf8(process.readAllStandardOutput());
-        result["stderr"] = QString::fromUtf8(process.readAllStandardError());
-        result["exit_code"] = process.exitCode();
+        const int exitCode = process.exitCode();
+        result["stderr"] = normalizeShellStderr(
+            exitCode,
+            QString::fromUtf8(process.readAllStandardError()),
+            spec.usesPowerShell);
+        result["exit_code"] = exitCode;
         return result;
     }
     

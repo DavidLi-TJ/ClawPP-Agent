@@ -178,6 +178,17 @@ ToolResult ToolExecutor::execute(const ToolCall& toolCall) {
         return subagentResult;
     }
 
+    if (toolCall.name == QStringLiteral("compact")) {
+        ToolResult result(toolCall.id,
+                          true,
+                          QStringLiteral("Compact requested. Archive current messages, summarize the conversation, and replace history with the structured summary."));
+        result.metadata[QStringLiteral("virtual_tool")] = true;
+        result.metadata[QStringLiteral("tool_name")] = QStringLiteral("compact");
+        result.metadata[QStringLiteral("focus")] = toolCall.arguments.value(QStringLiteral("focus")).toString();
+        emit toolCompleted(toolCall, result);
+        return result;
+    }
+
     if (!m_registry) {
         return ToolResult(toolCall.id, false, QStringLiteral("Tool registry not configured"));
     }
@@ -328,6 +339,12 @@ ITool* tool = m_registry->getTool(toolCall.name);
         result.metadata[QStringLiteral("permission_level")] = static_cast<int>(tool->permissionLevel());
         result.metadata[QStringLiteral("needs_confirmation")] = tool->needsConfirmation();
         result.metadata[QStringLiteral("can_run_in_parallel")] = tool->canRunInParallel();
+        if (reviewedCall.name == QStringLiteral("read_file")) {
+            const QString accessedPath = result.metadata.value(QStringLiteral("path")).toString().trimmed();
+            if (!accessedPath.isEmpty()) {
+                result.metadata[QStringLiteral("recent_file_path")] = accessedPath;
+            }
+        }
         if (reviewedCall.arguments.contains(QStringLiteral("_risk_level"))) {
             result.metadata[QStringLiteral("risk_level")] = reviewedCall.arguments.value(QStringLiteral("_risk_level")).toInt();
             result.metadata[QStringLiteral("risk_summary")] = reviewedCall.arguments.value(QStringLiteral("_risk_summary")).toString();
