@@ -1054,7 +1054,7 @@ void ReactAgentCore::setContext(const MessageList& messages) {
 void ReactAgentCore::setSystemPrompt(const QString& prompt) {
     m_systemPrompt = prompt;
 }
-
+//消息循环
 void ReactAgentCore::processIteration() {
     if (finalizeIfStoppedOrExceeded()) {
         return;
@@ -1072,7 +1072,7 @@ void ReactAgentCore::processIteration() {
     options.maxTokens = m_providerConfig.maxTokens;
     options.stream = m_provider->supportsStreaming();
 
-    if (m_toolsEnabled && m_provider->supportsTools()) {
+    if (m_toolsEnabled && m_provider->supportsTools()) {//工具调用
         if (!m_runtimeToolNames.isEmpty()) {
             QJsonArray scopedTools;
             for (const QString& toolName : m_runtimeToolNames) {
@@ -1088,14 +1088,14 @@ void ReactAgentCore::processIteration() {
     }
 
     const quint64 runGeneration = m_runGeneration;
-
+    //检查llmprovide
     QPointer<ILLMProvider> provider(m_provider);
     if (!provider) {
         emit errorOccurred(QStringLiteral("Provider 已失效"));
         return;
     }
 
-    if (!options.stream) {
+    if (!options.stream) {//非流式响应分支
         auto startNonStream = [this, provider, messages, options, runGeneration]() {
             if (!provider) {
                 return;
@@ -1106,51 +1106,9 @@ void ReactAgentCore::processIteration() {
                         if (m_stopped || runGeneration != m_runGeneration) {
                             return;
                         }
-                        if (response.isEmpty()) {
-                            handleStreamCompleted(runGeneration);
-                            return;
-                        }
-
-                        auto payload = std::make_shared<QString>(response);
-                        auto cursor = std::make_shared<int>(0);
-                        auto pump = std::make_shared<std::function<void()>>();
-                        *pump = [this, runGeneration, payload, cursor, pump]() {
-                            if (m_stopped || runGeneration != m_runGeneration) {
-                                return;
-                            }
-                            if (*cursor >= payload->size()) {
-                                handleStreamCompleted(runGeneration);
-                                return;
-                            }
-                            const int remaining = payload->size() - *cursor;
-                            int chunkSize = 12;
-                            if (remaining > 2400) {
-                                chunkSize = 56;
-                            } else if (remaining > 1400) {
-                                chunkSize = 44;
-                            } else if (remaining > 720) {
-                                chunkSize = 32;
-                            } else if (remaining > 280) {
-                                chunkSize = 24;
-                            } else if (remaining > 120) {
-                                chunkSize = 18;
-                            }
-                            StreamChunk chunk;
-                            chunk.content = payload->mid(*cursor, chunkSize);
-                            *cursor += chunkSize;
-                            handleStreamChunk(chunk, runGeneration);
-                            int delayMs = 7;
-                            if (!chunk.content.isEmpty()) {
-                                const QChar tail = chunk.content.back();
-                                if (tail == '\n') {
-                                    delayMs = 16;
-                                } else if (QStringLiteral(".,!?;:，。！？；：").contains(tail)) {
-                                    delayMs = 11;
-                                }
-                            }
-                            QTimer::singleShot(delayMs, this, [pump]() { (*pump)(); });
-                        };
-                        (*pump)();
+                        m_currentThought = response;
+                        m_currentContent = response;
+                        handleStreamCompleted(runGeneration);
                     };
                     if (this->thread() == QThread::currentThread()) {
                         handleResponse();
